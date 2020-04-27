@@ -11,9 +11,13 @@ sudo apt-get autoremove
 # copy paste clipboard utility
 sudo apt-get install xclip
 # tweak some of the gnome defaults
-sudo apt-get install gnome-tweak-tool
+# sudo apt-get install gnome-tweak-tool
 # just in case I am running old version of linux https://snapcraft.io/docs/installing-snap-on-ubuntu
 sudo apt-get install snapd
+# install multimedia stuff
+sudo apt-get install ubuntu-restricted-extras
+# remove amazon related stuff
+sudo apt purge ubuntu-web-launchers
 echo ""
 
 echo "--------------------------INSTALL APT PACKAGES-------------------------------"
@@ -37,4 +41,6 @@ sudo snap install discord --classic
 sudo snap install signal-desktop --classic
 sudo snap install vlc --classic
 sudo snap install heroku --classic
+sudo snap install gimp --classic
+sudo snap install mailspring
 echo ""

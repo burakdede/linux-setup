@@ -31,7 +31,7 @@ echo ""
 echo ""
 echo ""
 echo "---------------------------TEST NEW KEY ADDED AGAINST GITHUB------------------------------"
-ssh -T git@github.com -i ~/.ssh/github_rsa
+ssh -T git@github.com -i ~/.ssh/id_rsa
 echo ""
 
 echo ""
