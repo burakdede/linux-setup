@@ -26,8 +26,6 @@ nmap
 nomad
 openssl
 packer
-libprotobuf10
-libprotobuf-java
 silversearcher-ag
 sqlite3
 transmission
@@ -36,3 +34,4 @@ tree
 unrar
 vim
 wget
+diodon

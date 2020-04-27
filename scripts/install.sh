@@ -43,4 +43,6 @@ sudo snap install vlc --classic
 sudo snap install heroku --classic
 sudo snap install gimp --classic
 sudo snap install mailspring
+sudo snap install spotify --classic
+sudo snap install android-studio --classic
 echo ""
