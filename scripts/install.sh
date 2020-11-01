@@ -26,7 +26,7 @@ parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 xargs sudo apt-get -y install < "$parent_path"/apt-packages.txt
 echo ""
 
-echo "---------INSTALL SNAP PACKAGES---------"
+echo "----INSTALL SNAP PACKAGES---------"
 echo ">>>>>>>>>>>>>>>>>>> snap install packages..."
 # unfortunately if one have a confinement of --classic all need to be separate command instead of one
 # https://snapcraft.io/docs/snap-confinement
@@ -44,7 +44,8 @@ sudo snap install heroku --classic
 sudo snap install gimp --classic
 sudo snap install spotify --classic
 sudo snap install android-studio --classic
-sudo snap install vscode --classic
+# sudo snap install vscode --classic
+sudo snap install code --classic
 sudo snap install sublime-text --classic
 sudo snap install eclipse --classic
 echo ""
