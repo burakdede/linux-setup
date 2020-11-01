@@ -2,8 +2,8 @@
 #
 echo ""
 echo ""
-echo "--------------------------UPDATES & UPGRADES FOR LINUX------------------------------"
-echo ">>>>>>>>>>>>>>>>>>>>>>>>>> apt-get update && apt-get upgrade"
+echo "------------UPDATES & UPGRADES FOR LINUX-------------"
+echo ">>>>>>>>>>>>>>>>>> apt-get update && apt-get upgrade"
 # keep it clean and updated
 sudo apt-get update
 sudo apt-get upgrade
@@ -20,14 +20,14 @@ sudo apt-get install ubuntu-restricted-extras
 sudo apt purge ubuntu-web-launchers
 echo ""
 
-echo "--------------------------INSTALL APT PACKAGES-------------------------------"
-echo ">>>>>>>>>>>>>>>>>>>>>>>>>> xargs sudo apt-get -y install < apt-packages.txt"
+echo "----INSTALL APT PACKAGES------"
+echo ">>>>>>>>>>>>>>> xargs sudo apt-get -y install < apt-packages.txt"
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 xargs sudo apt-get -y install < "$parent_path"/apt-packages.txt
 echo ""
 
-echo "-------------------------INSTALL SNAP PACKAGES------------------------------------------"
-echo ">>>>>>>>>>>>>>>>>>>>>>>>> snap install packages..."
+echo "---------INSTALL SNAP PACKAGES---------"
+echo ">>>>>>>>>>>>>>>>>>> snap install packages..."
 # unfortunately if one have a confinement of --classic all need to be separate command instead of one
 # https://snapcraft.io/docs/snap-confinement
 sudo snap install intellij-idea-ultimate --classic
