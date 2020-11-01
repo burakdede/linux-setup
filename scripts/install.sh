@@ -42,7 +42,9 @@ sudo snap install signal-desktop --classic
 sudo snap install vlc --classic
 sudo snap install heroku --classic
 sudo snap install gimp --classic
-sudo snap install mailspring
 sudo snap install spotify --classic
 sudo snap install android-studio --classic
+sudo snap install vscode --classic
+sudo snap install sublime-text --classic
+sudo snap install eclipse --classic
 echo ""

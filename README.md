@@ -3,11 +3,11 @@
 > tldr; just run the `run.sh` and it will take care of the rest
 
 1. Install OS
-- [TODO] here put the information about how to make live USB for the linux distro
+- Create Live USB for ubuntu based distro [MATE](https://ubuntu-mate.org/faq/usb-image/)
 
 2. Install Updates
 - run `install.sh` to get the latest updates with apt
-- install some packages necessary for next steps (eg. clipboard copy)
+- install some packages necessary for next steps (eg. clipboard copy cmd)
 - install apt packages from `apt-packages`
 - install snap packages
 
