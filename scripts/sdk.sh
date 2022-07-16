@@ -8,6 +8,7 @@ echo ""
 
 echo ""
 echo "--------------UPDATE SDKMAN-----------"
+sdk version
 sdk selfupdate
 sdk update
 echo ""
