@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-./scripts/install.sh
-./scripts/git.sh
-./scripts/sdk.sh
+./install.sh
+./git.sh
+./sdk.sh
 
 echo ""
 echo "----------COPYING DOTFILES TO HOME DIR----------------------------------"

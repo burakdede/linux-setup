@@ -23,7 +23,7 @@ echo ""
 echo ""
 echo "---------------------------OPEN GITHUB UI & ADD KEY TO SETTINGS------------------------------"
 echo "opening github settings to add ssh key."
-firefox https://github.com/settings/keys
+xdg-open https://github.com/settings/keys
 echo "waiting for 60 seconds to test the new ssh key with github"
 sleep 60
 echo ""

@@ -4,7 +4,6 @@ ant
 automake
 awscli
 autojump
-wireshark
 cmake
 consul
 coreutils
@@ -15,6 +14,7 @@ gcc
 gdb
 git
 gimp
+gnome-tweaks
 htop
 httpie
 imagemagick
@@ -24,9 +24,7 @@ maven
 memcached
 moreutils
 nmap
-nomad
 openssl
-packer
 silversearcher-ag
 sqlite3
 transmission
@@ -36,4 +34,3 @@ unrar
 vim
 vlc
 wget
-diodon

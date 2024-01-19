@@ -19,35 +19,17 @@ sudo apt-get install xclip
 sudo apt-get install ubuntu-restricted-extras
 
 
-# remove amazon related stuff
-sudo apt purge ubuntu-web-launchers
-
-
 echo ""
 echo "----INSTALL APT PACKAGES------"
 
 
 echo ">>>>>>>>>>>>>>> xargs sudo apt-get -y install < apt-packages.txt"
-parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-xargs sudo apt-get -y install < "$parent_path"/apt-packages.txt
+xargs sudo apt-get -y install < apt-packages.txt
 echo ">>>>>>>>>>>>>>>>>> finished apt installation from apt-packages.txt"
 echo ""
 
 
 echo "----INSTALL NON STANDARD APT PACKAGES---------"
-
-
-echo ">>>>>>>>>>>>>>>>>>> installing vs code..."
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-sudo apt install ./google-chrome-stable_current_amd64.deb
-echo ">>>>>>>>>>>>>>>>>>> installing vs code..."
-
-
-echo ">>>>>>>>>>>>>>>>>>> installing spotify..."
-curl -sS https://download.spotify.com/debian/pubkey_5E3C45D7B312C643.gpg | sudo apt-key add - 
-echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list
-sudo apt-get update && sudo apt-get install spotify-client
-echo ">>>>>>>>>>>>>>>>>>> finished installing spotify..."
 
 
 # https://www.digitalocean.com/community/tutorials/how-to-install-postgresql-on-ubuntu-20-04-quickstart
@@ -77,8 +59,5 @@ sudo apt install apt-transport-https
 sudo apt update
 sudo apt install code
 echo ">>>>>>>>>>>>>>>>>>> finished installing vs code..."
-
-
-
 
 echo ""
