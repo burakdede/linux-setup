@@ -31,6 +31,13 @@ echo ""
 
 echo "----INSTALL NON STANDARD APT PACKAGES---------"
 
+echo ">>>>>>>>>>>>>>>>>>>> installing Spotify..."
+curl -sS https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg
+echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7A3A762FAFD4A51F
+sudo apt-get update && sudo apt-get install spotify-client
+echo ">>>>>>>>>>>>>>>>>>>>> finished installing Spotify..."
+
 
 # https://www.digitalocean.com/community/tutorials/how-to-install-postgresql-on-ubuntu-20-04-quickstart
 echo ">>>>>>>>>>>>>>>>>>> installing PostgreSQL..."
