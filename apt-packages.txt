@@ -2,10 +2,8 @@ build-essential
 ack
 ant
 automake
-awscli
 autojump
 cmake
-consul
 coreutils
 curl
 ffmpeg
