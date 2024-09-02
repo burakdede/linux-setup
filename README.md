@@ -1,31 +1,58 @@
 # Linux Machine Setup Guide
 
-> tldr; just run the `run.sh` and it will take care of the rest. This is for
-> Debian systems (tested on latest Ubuntu LTS)
+This installation script helps you set up a new development environment with all necessary tools after a fresh install of Ubuntu.
 
-## Steps
+## Manual Steps Prior to Script Run
 
-1. Install Chrome (manual)
-2. Install Password Manager (manual)
-3. Install Git
-4. Clone the repo with Git
-5. Run `run.sh`
+Before running the setup script, perform the following manual steps:
 
-# Run Script Breakdown
+1. **Install Chrome** (Optional: Skip if you prefer Firefox).
+2. **Install a Password Manager** (Optional: Skip if you do not use a password manager).
+3. **Install Git**:
+   - Run `sudo apt install git` (until Git becomes a default package).
+4. **Clone this Repository**:
+   - Use HTTPS to clone this repository as SSH access to GitHub is not set up at this point.
 
-1. `install.sh` Install Updates
-    - run `install.sh` to get the latest updates with apt
-    - install some packages necessary for next steps (eg. clipboard copy cmd)
-    - install apt packages from `apt-packages`
-    - install snap packages
-2. `git.sh` Git & Github
-    - run `git.sh`
-    - It will generate new ssh key for github and put into your clipboard
-    - Launches ssh agent and will ask it to cache the new key
-    - Opens github settings to enter the new ssh key for the new machine
-    - Test new ssh key against github
-    - Sets cache TTL for 1 hour
-3. `sdk.sh` SDKMAN
-    - run `sdk.sh`
-    - install sdkman
-    - install all lang. runtimes and frameworks
+## How to Run
+
+To execute the setup script, run the following command:
+
+```bash
+./run.sh
+```
+
+## Run Script Breakdown
+
+In addition to the main `run.sh` script, individual scripts can be run separately depending on your needs:
+
+### `install.sh` - Install Updates
+
+Run `install.sh` to:
+
+- Get the latest updates via `apt`.
+- Install essential packages required for the next steps (e.g., clipboard copy command).
+- Install additional `apt` packages listed in the `apt-packages` file.
+- Install necessary Snap packages.
+
+### `git.sh` - Git & GitHub Setup
+
+Run `git.sh` to:
+
+- Generate a new SSH key for GitHub and copy it to your clipboard.
+- Launch the SSH agent and configure it to cache the new key.
+- Open GitHub settings to add the new SSH key for the current machine.
+- Test the new SSH key against GitHub.
+- Set the SSH agent cache Time-To-Live (TTL) to 1 hour.
+
+### `sdk.sh` - SDKMAN Installation
+
+Run `sdk.sh` to:
+
+- Install SDKMAN.
+- Install all necessary language runtimes and frameworks.
+
+## Notes
+
+- This script is designed for setting up a development environment on Ubuntu and similar Debian-based systems. Compatibility with other distributions may vary.
+- Ensure that you perform the manual steps prior to running the script to avoid any issues during setup.
+
