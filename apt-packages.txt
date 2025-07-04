@@ -13,6 +13,7 @@ gdb
 git
 gimp
 gnome-tweaks
+gh
 htop
 httpie
 imagemagick
@@ -24,6 +25,7 @@ moreutils
 nmap
 openssl
 silversearcher-ag
+snapd
 sqlite3
 transmission
 tmux

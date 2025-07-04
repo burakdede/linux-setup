@@ -1,0 +1,29 @@
+# Ubuntu-specific development tools
+# Add Snap packages here
+
+# Development IDEs
+
+# Development utilities
+docker
+
+
+# Communication tools
+teams
+zoom-client
+discord
+slack
+
+# Entertainment
+steam
+vlc
+
+# Productivity tools
+obs-studio
+obsidian
+localsend
+
+# Additional development tools
+postman
+insomnia
+gnome-boxes
+

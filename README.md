@@ -1,58 +1,83 @@
-# Linux Machine Setup Guide
+# Ubuntu Developer Machine Setup
 
-This installation script helps you set up a new development environment with all necessary tools after a fresh install of Ubuntu.
+## Quick Start
 
-## Manual Steps Prior to Script Run
+1. Install Git:
+   ```bash
+   sudo apt install git
+   ```
 
-Before running the setup script, perform the following manual steps:
+2. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/linux-setup
+   cd linux-setup
+   ```
 
-1. **Install Chrome** (Optional: Skip if you prefer Firefox).
-2. **Install a Password Manager** (Optional: Skip if you do not use a password manager).
-3. **Install Git**:
-   - Run `sudo apt install git` (until Git becomes a default package).
-4. **Clone this Repository**:
-   - Use HTTPS to clone this repository as SSH access to GitHub is not set up at this point.
+3. Run the setup:
+   ```bash
+   ./run.sh
+   ```
 
-## How to Run
+## What's Included
 
-To execute the setup script, run the following command:
+- System updates and package installations
+- Development tools and IDEs
+- Git configuration and GitHub setup
+- SDKMAN and language runtimes
+- Custom dotfiles configuration
 
-```bash
-./run.sh
+## Project Structure
+
 ```
-
-## Run Script Breakdown
-
-In addition to the main `run.sh` script, individual scripts can be run separately depending on your needs:
-
-### `install.sh` - Install Updates
-
-Run `install.sh` to:
-
-- Get the latest updates via `apt`.
-- Install essential packages required for the next steps (e.g., clipboard copy command).
-- Install additional `apt` packages listed in the `apt-packages` file.
-- Install necessary Snap packages.
-
-### `git.sh` - Git & GitHub Setup
-
-Run `git.sh` to:
-
-- Generate a new SSH key for GitHub and copy it to your clipboard.
-- Launch the SSH agent and configure it to cache the new key.
-- Open GitHub settings to add the new SSH key for the current machine.
-- Test the new SSH key against GitHub.
-- Set the SSH agent cache Time-To-Live (TTL) to 1 hour.
-
-### `sdk.sh` - SDKMAN Installation
-
-Run `sdk.sh` to:
-
-- Install SDKMAN.
-- Install all necessary language runtimes and frameworks.
+├── apt-packages.txt          # APT package list
+├── snap-packages.txt         # Snap package list
+├── system.sh               # System package installation
+├── git.sh                  # GitHub SSH key setup
+├── sdk.sh                  # SDKMAN installation
+├── settings.sh             # GNOME desktop settings
+├── dotfiles/               # Configuration files
+│   ├── .bashrc
+│   ├── .vimrc
+│   └── .gitconfig
+└── run.sh                  # Main orchestration script
+```
 
 ## Notes
 
-- This script is designed for setting up a development environment on Ubuntu and similar Debian-based systems. Compatibility with other distributions may vary.
-- Ensure that you perform the manual steps prior to running the script to avoid any issues during setup.
+- This script is designed for Ubuntu systems
+- Keep `apt-packages.txt` and `snap-packages.txt` up to date
+- The setup is idempotent and can be run multiple times safely
+- Installs APT packages from `apt-packages.txt`
+- Installs Snap packages from `snap-packages.txt`
+- Sets up basic development environment
+- Configures GNOME desktop settings
+
+### `git.sh`
+- Configures Git with SSH key
+- Sets up GitHub integration
+- Configures global Git settings
+
+### `sdk.sh`
+- Installs SDKMAN
+- Sets up language runtimes
+- Configures development tools
+
+### `settings.sh`
+- Configures GNOME desktop settings
+- Sets up workspaces and shortcuts
+- Configures dock and window snapping
+- Assigns applications to specific workspaces
+- Configures keyboard repeat settings
+- Configures screenshot shortcuts
+- Sets up GNOME extensions:
+  - Tactile (Tile windows)
+  - Space Bar (Workspace naming and enumeration)
+  - Alphabetic App Grid
+
+### GNOME Extensions
+- Some features require manual installation of GNOME extensions:
+  1. Visit https://extensions.gnome.org/
+  2. Click the "ON/OFF" switch to install
+  3. Enable in GNOME Tweaks if needed
+  4. Some extensions may require GNOME Shell restart
 
