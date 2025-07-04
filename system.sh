@@ -64,6 +64,19 @@ if ! command -v code &> /dev/null; then
     fi
 fi
 
+# Install VS Code extensions
+echo_header "Installing VS Code Extensions"
+if [ -f vscode-extensions.txt ]; then
+    while IFS= read -r extension; do
+        if [ -n "$extension" ] && [[ ! $extension =~ ^# ]]; then
+            echo "Installing VS Code extension: $extension"
+            if ! code --install-extension "$extension" --force 2>/dev/null; then
+                echo "Warning: Failed to install VS Code extension $extension"
+            fi
+        fi
+    done < vscode-extensions.txt
+fi
+
 # Install Cursor
 echo_header "Installing Cursor"
 if ! command -v cursor &> /dev/null; then

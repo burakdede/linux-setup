@@ -31,6 +31,7 @@
 ```
 ├── apt-packages.txt          # APT package list
 ├── snap-packages.txt         # Snap package list
+├── vscode-extensions.txt     # VS Code extension list
 ├── system.sh               # System package installation
 ├── git.sh                  # GitHub SSH key setup
 ├── sdk.sh                  # SDKMAN installation
@@ -45,10 +46,11 @@
 ## Notes
 
 - This script is designed for Ubuntu systems
-- Keep `apt-packages.txt` and `snap-packages.txt` up to date
+- Keep `apt-packages.txt`, `snap-packages.txt`, and `vscode-extensions.txt` up to date
 - The setup is idempotent and can be run multiple times safely
 - Installs APT packages from `apt-packages.txt`
 - Installs Snap packages from `snap-packages.txt`
+- Installs VS Code extensions from `vscode-extensions.txt`
 - Sets up basic development environment
 - Configures GNOME desktop settings
 

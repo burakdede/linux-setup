@@ -1,0 +1,41 @@
+# VS Code Extensions
+# Core essential extensions from Microsoft and reputable publishers
+
+# Core Development
+ms-python.vscode-pylance         # Python language support
+ms-python.python                 # Python base extension
+ms-python.debugpy                # Python debugger
+ms-python.isort                 # Python imports sorter
+ms-python.black-formatter       # Python code formatter
+
+# Git Integration
+eamodio.gitlens                 # Enhanced Git features
+
+# Code Quality
+ms-vscode.vscode-eslint          # JavaScript/TypeScript linting
+
+# Docker Development
+ms-vscode.vscode-docker          # Docker integration
+
+# C/C++ Development
+ms-vscode.cpptools               # C/C++ language support
+ms-vscode.cpptools-extension-pack # C/C++ extension pack
+
+# Data Science
+ms-python.vscode-jupyter         # Jupyter notebook support
+
+# Configuration
+redhat.vscode-yaml               # YAML language support
+
+# Infrastructure
+hashicorp.terraform              # Terraform language support
+hashicorp.hcl                    # HCL language support
+hashicorp.terraform-docs         # Terraform documentation
+hashicorp.terraform-ls           # Terraform language server
+hashicorp.terraform-syntax       # Terraform syntax highlighting
+hashicorp.terraform-validate     # Terraform validation
+hashicorp.terraform-format       # Terraform formatting
+
+# CI/CD
+github.vscode-github-actions     # GitHub Actions
+ms-azuretools.vscode-containers  # Container Tools
