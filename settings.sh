@@ -133,6 +133,14 @@ echo_header "Configuring Dock Settings"
 
 # Configure dock appearance and behavior
 echo "Configuring dock settings..."
+# Set Dock to bottom of the screen
+gsettings set org.gnome.shell.extensions.dash-to-dock dock-position BOTTOM
+# Auto-hide dock
+gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed false
+# Set icon size to 32
+gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 32
+# Show on primary display only
+gsettings set org.gnome.shell.extensions.dash-to-dock multi-monitor false
 # Show applications at top of dock
 gsettings set org.gnome.shell.extensions.dash-to-dock show-apps-at-top true
 # Show favorite applications in dock
@@ -148,6 +156,17 @@ gsettings set org.gnome.shell.extensions.dash-to-dock hide-delay 0.2
 # Clear existing dock favorites
 echo "Clearing existing dock favorites..."
 gsettings set org.gnome.shell favorite-apps "[]"
+
+# Screenshot and Recording
+echo "Screenshot and recording shortcuts..."
+# Screenshot Interactively (Shift+Alt+4)
+gsettings set org.gnome.shell.keybindings show-screenshot-ui "['<Shift><Alt>4']"
+# Screenshot Window (Shift+Alt+3)
+gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
+# Screenshot (Shift+Alt+2)
+gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Alt>2']"
+# Screenrecord (Shift+Alt+5)
+gsettings set org.gnome.shell.keybindings show-screen-recording-ui "['<Shift><Alt>5']"
 
 # Set our predefined favorites list
 echo "Setting up dock favorites..."
