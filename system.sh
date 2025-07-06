@@ -12,9 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Update system
 echo_header "System Updates"
-if ! sudo apt-get update || sudo apt-get upgrade -y || sudo apt-get autoremove -y; then
-    echo "Error: Failed to update system packages"
-    exit 1
+if ! sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get autoremove -y; then
+    echo "Warning: Some system updates may have failed"
 fi
 
 # Install Basic Utilities
@@ -53,39 +52,95 @@ fi
 # Install VS Code
 echo_header "Installing VS Code"
 if ! command -v code &> /dev/null; then
-    echo "Setting up VS Code repository"
-    if ! sudo apt-get install -y wget gpg || \
-       wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg || \
-       sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings || \
-       sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list' || \
-       sudo apt update || sudo apt install -y --no-install-recommends code; then
+    echo "Installing VS Code..."
+    # Add Microsoft repository
+    if ! wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -; then
+        echo "Warning: Failed to add Microsoft GPG key"
+        exit 1
+    fi
+    
+    if ! echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null; then
+        echo "Warning: Failed to add VS Code repository"
+        exit 1
+    fi
+    
+    # Update and install VS Code
+    if ! sudo apt update || ! sudo apt install -y code; then
         echo "Error: Failed to install VS Code"
         exit 1
     fi
+else
+    echo "VS Code is already installed"
 fi
 
 # Install VS Code extensions
 echo_header "Installing VS Code Extensions"
+if ! command -v code &> /dev/null; then
+    echo "Warning: VS Code is not installed. Skipping extension installation."
+    exit 0
+fi
+
 if [ -f vscode-extensions.txt ]; then
+    echo "Installing VS Code extensions..."
+    
+    # Create extensions directory
+    mkdir -p "$HOME/.vscode/extensions" 2>/dev/null
+    
+    # Read and install each extension
     while IFS= read -r extension; do
-        if [ -n "$extension" ] && [[ ! $extension =~ ^# ]]; then
-            echo "Installing VS Code extension: $extension"
-            if ! code --install-extension "$extension" --force 2>/dev/null; then
-                echo "Warning: Failed to install VS Code extension $extension"
-            fi
+        # Skip empty lines
+        if [ -z "$extension" ]; then
+            continue
         fi
+        
+        # Skip if already installed (case-insensitive)
+        if code --list-extensions | tr '[:upper:]' '[:lower:]' | grep -iq "$(echo "$extension" | tr '[:upper:]' '[:lower:]')"; then
+            echo "Extension '$extension' is already installed."
+            continue
+        fi
+        
+        # Install extension
+        code --install-extension "$extension" --force
     done < vscode-extensions.txt
+else
+    echo "Warning: vscode-extensions.txt not found"
 fi
 
 # Install Cursor
 echo_header "Installing Cursor"
 if ! command -v cursor &> /dev/null; then
     echo "Installing Cursor AppImage..."
-    if ! wget -q "https://github.com/cursor-editor/cursor/releases/download/latest/cursor.AppImage" -O /tmp/cursor.AppImage || \
-       chmod +x /tmp/cursor.AppImage || \
-       sudo mv /tmp/cursor.AppImage /usr/local/bin/cursor || \
-       sudo ln -sf /usr/local/bin/cursor /usr/share/applications/cursor.desktop; then
-        echo "Warning: Failed to install Cursor"
+    # Download Cursor with retries
+    for i in {1..3}; do
+        if wget -q "https://github.com/cursor-editor/cursor/releases/download/latest/cursor.AppImage" -O /tmp/cursor.AppImage; then
+            echo "✓ Successfully downloaded Cursor"
+            break
+        else
+            echo "Attempt $i failed, retrying..."
+            sleep 2
+        fi
+    done
+
+    if [ -f /tmp/cursor.AppImage ]; then
+        # Make executable and move to bin
+        if chmod +x /tmp/cursor.AppImage && sudo mv /tmp/cursor.AppImage /usr/local/bin/cursor; then
+            echo "✓ Successfully installed Cursor"
+            # Create desktop entry
+            if ! [ -f /usr/share/applications/cursor.desktop ]; then
+                echo "[Desktop Entry]" | sudo tee /usr/share/applications/cursor.desktop > /dev/null
+                echo "Name=Cursor" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Comment=Cursor IDE" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Exec=/usr/local/bin/cursor" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Icon=cursor" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Terminal=false" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Type=Application" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+                echo "Categories=Development;IDE;" | sudo tee -a /usr/share/applications/cursor.desktop > /dev/null
+            fi
+        else
+            echo "✗ Warning: Failed to install Cursor"
+        fi
+    else
+        echo "✗ Warning: Failed to download Cursor AppImage"
     fi
 else
     echo "Cursor is already installed"
@@ -122,57 +177,86 @@ fi
 # Install Ulauncher
 echo_header "Installing Ulauncher"
 if ! command -v ulauncher &> /dev/null; then
-    echo "Adding Ulauncher repository"
-    if ! sudo add-apt-repository universe -y || \
-       sudo add-apt-repository ppa:agornostal/ulauncher -y || \
-       sudo apt update || \
-       sudo apt install -y ulauncher; then
-        echo "Warning: Failed to install Ulauncher"
+    echo "Setting up Ulauncher installation"
+    
+    # Create necessary directories
+    if ! mkdir -p /tmp/ulauncher-install || \
+       ! sudo add-apt-repository ppa:agornostal/ulauncher -y 2>/dev/null || \
+       ! sudo apt update || \
+       ! sudo apt install -y ulauncher; then
+        echo "Error: Failed to install Ulauncher"
+        exit 1
     fi
+    
+    echo "Ulauncher installed successfully!"
 else
     echo "Ulauncher is already installed"
 fi
 
-# Install Database Systems
-echo_header "Installing Database Systems"
-for db in postgresql mysql-server; do
-    if ! sudo apt install -y --no-install-recommends "$db" || ! sudo systemctl start "${db%.server}".service; then
-        echo "Warning: Failed to install/start $db"
+# Install Google Chrome
+echo_header "Installing Google Chrome"
+if ! command -v google-chrome &> /dev/null; then
+    # Add Google Chrome repository and key
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+
+    # Update package list
+    sudo apt update
+
+    # Install Google Chrome
+    sudo apt install -y google-chrome-stable
+
+    # Verify installation
+    if ! command -v google-chrome &> /dev/null; then
+        echo "Error: Chrome installation failed"
+        exit 1
     fi
-    # Check if service is running
-    if ! sudo systemctl is-active --quiet "${db%.server}".service; then
-        echo "Warning: $db service is not running"
-    fi
-    # Verify database version
-    if command -v "${db%.server}" &> /dev/null; then
-        version=$(${db%.server} --version 2>/dev/null || echo "Unknown")
-        echo "${db%.server} version: $version"
-    fi
-done
+    echo "Google Chrome installed successfully!"
+else
+    echo "Google Chrome is already installed"
+fi
 
 # Install JetBrains Toolbox
 echo_header "Installing JetBrains Toolbox"
 if ! command -v jetbrains-toolbox &> /dev/null; then
-    echo "Downloading JetBrains Toolbox..."
-    if ! wget -q "https://download.jetbrains.com/toolbox/jetbrains-toolbox-1.27.1.17047.tar.gz" -O /tmp/jetbrains-toolbox.tar.gz; then
-        echo "Error: Failed to download JetBrains Toolbox"
+    echo "Setting up JetBrains Toolbox installation"
+    
+    # Create directory and install
+    if ! mkdir -p /tmp/jetbrains-toolbox-install || \
+       ! wget -q "https://download.jetbrains.com/toolbox/jetbrains-toolbox-2.6.3.43718.tar.gz" -O /tmp/jetbrains-toolbox-install/jetbrains-toolbox.tar.gz || \
+       ! tar -xzf /tmp/jetbrains-toolbox-install/jetbrains-toolbox.tar.gz -C /tmp/jetbrains-toolbox-install; then
+        echo "Error: Failed to download or extract JetBrains Toolbox"
         exit 1
     fi
-    
-    echo "Extracting JetBrains Toolbox..."
-    if ! tar -xzf /tmp/jetbrains-toolbox.tar.gz -C /tmp; then
-        echo "Error: Failed to extract JetBrains Toolbox"
+
+    # Get the extracted directory name
+    extracted_dir="/tmp/jetbrains-toolbox-install/jetbrains-toolbox-2.6.3.43718"
+    if [ ! -d "$extracted_dir" ]; then
+        echo "Error: Failed to find extracted directory at $extracted_dir"
         exit 1
     fi
+
+    # Check if the executable exists in the bin directory
+    toolbox_file="$extracted_dir/bin/jetbrains-toolbox"
+    if [ ! -f "$toolbox_file" ]; then
+        echo "Error: Failed to find JetBrains Toolbox executable at $toolbox_file"
+        exit 1
+    fi
+
+    # Create destination directory if needed
+    sudo mkdir -p /usr/local/bin
     
-    echo "Installing JetBrains Toolbox..."
-    if ! sudo mv /tmp/jetbrains-toolbox-*/jetbrains-toolbox /usr/local/bin/; then
+    # Move the executable and set permissions
+    if ! sudo cp "$toolbox_file" /usr/local/bin/jetbrains-toolbox || \
+       ! sudo chmod +x /usr/local/bin/jetbrains-toolbox; then
         echo "Error: Failed to move JetBrains Toolbox to system path"
         exit 1
     fi
     
+    # Clean up
     echo "Cleaning up..."
-    rm -rf /tmp/jetbrains-toolbox* 2>/dev/null
+    rm -rf /tmp/jetbrains-toolbox-install 2>/dev/null
     
     echo "JetBrains Toolbox installed successfully!"
     echo "You can run it with: jetbrains-toolbox"
@@ -180,21 +264,20 @@ else
     echo "JetBrains Toolbox is already installed"
 fi
 
-# Install Consul
-echo_header "Installing Consul"
-if ! wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg || \
-   echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list || \
-   sudo apt update || sudo apt install -y --no-install-recommends consul; then
-    echo "Warning: Failed to install Consul"
-fi
-
 # Install Spotify
 echo_header "Installing Spotify"
-if ! curl -sS https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg || \
-   echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list || \
-   sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7A3A762FAFD4A51F || \
-   sudo apt-get update || sudo apt-get install -y --no-install-recommends spotify-client; then
-    echo "Warning: Failed to install Spotify"
+if ! command -v spotify &> /dev/null; then
+    # Add Spotify repository and key
+    if ! curl -sS https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg || \
+       echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list || \
+       sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7A3A762FAFD4A51F || \
+       sudo apt-get update || sudo apt-get install -y --no-install-recommends spotify-client; then
+        echo "Warning: Failed to install Spotify"
+        exit 1
+    fi
+    echo "Spotify installed successfully!"
+else
+    echo "Spotify is already installed"
 fi
 
 # Verify installations

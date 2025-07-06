@@ -51,12 +51,119 @@ check_dir() {
     return 0
 }
 
+# Function to backup GNOME settings
+# Usage: 
+#   1. From terminal: source utils.sh && backup_gnome_settings
+#   2. From another script: source utils.sh && backup_gnome_settings
+backup_gnome_settings() {
+    echo "Backing up GNOME settings..."
+    local backup_dir=~/.config/gsettings-backup
+    mkdir -p "$backup_dir"
+    gsettings list-recursively > "$backup_dir/settings-backup-$(date +%Y%m%d-%H%M%S).txt"
+    echo "Backup completed successfully"
+}
+
+# Function to restore GNOME settings
+# Usage:
+#   1. From terminal: source utils.sh && restore_gnome_settings
+#   2. From another script: source utils.sh && restore_gnome_settings
+# Warning: This will reset ALL GNOME settings to defaults
+restore_gnome_settings() {
+    echo "Restoring GNOME settings to defaults..."
+    
+    # Reset all relevant schemas
+    gsettings reset-recursively org.gnome.desktop.wm.preferences
+    gsettings reset-recursively org.gnome.desktop.wm.keybindings
+    gsettings reset-recursively org.gnome.desktop.interface
+    gsettings reset-recursively org.gnome.shell
+    gsettings reset-recursively org.gnome.shell.extensions.dash-to-dock
+    gsettings reset-recursively org.gnome.shell.extensions
+    
+    echo "Settings restored to defaults. You may need to log out and back in for all changes to take effect."
+}
+
+# Function to show backup and restore instructions
+# Usage:
+#   1. From terminal: source utils.sh && show_backup_instructions
+#   2. From another script: source utils.sh && show_backup_instructions
+show_backup_instructions() {
+    echo "Backup and Restore Instructions:"
+    echo "1. Backup of current settings is stored in ~/.config/gsettings-backup/"
+    echo "2. To restore default settings, run:"
+    echo "   restore_gnome_settings"
+    echo "3. Alternatively, you can use GNOME Tweaks to reset settings manually"
+    echo "4. Each backup file is timestamped and contains all current GNOME settings"
+}
+
+
+
 # Function to verify package installation
 verify_package() {
     if ! dpkg -l | grep -q "$1"; then
         echo "Warning: $1 is not installed"
         return 1
     fi
+}
+
+# Function to verify dock configuration
+verify_dock_apps() {
+    local expected_apps=(
+        "code.desktop"  # VSCode
+        "slack_slack.desktop"  # Slack
+        "discord_discord.desktop"  # Discord
+        "google-chrome.desktop"  # Chrome
+        "firefox_firefox.desktop"  # Firefox
+        "spotify_spotify.desktop"  # Spotify
+        "obsidian_obsidian.desktop"  # Obsidian
+        "windsurf_windsurf.desktop"  # Windsurf
+        "cursor_cursor.desktop"  # Cursor
+        "localsend_localsend.desktop"  # LocalSend
+        "org.gnome.Nautilus.desktop"  # Home Folder
+        "org.gnome.Terminal.desktop"  # Terminal
+        "gnome-control-center_gnome-control-center.desktop"  # Settings
+    )
+
+    echo "Verifying dock configuration..."
+    local current_apps=$(gsettings get org.gnome.shell favorite-apps | tr -d "[]'" | tr ',' ' ')
+    
+    echo "Expected apps in dock:"
+    printf "  %s\n" "${expected_apps[@]}"
+    
+    echo "Current apps in dock:"
+    printf "  %s\n" $current_apps
+    
+    # Verify each expected app is present
+    local missing_apps=()
+    for app in "${expected_apps[@]}"; do
+        if [[ ! $current_apps =~ $app ]]; then
+            missing_apps+=("$app")
+        fi
+    done
+    
+    if [ ${#missing_apps[@]} -eq 0 ]; then
+        echo "✅ All expected applications are present in the dock"
+    else
+        echo "❌ Missing applications in the dock:"
+        printf "  %s\n" "${missing_apps[@]}"
+        return 1
+    fi
+    
+    # Verify no extra apps are present
+    local extra_apps=()
+    for app in $current_apps; do
+        if [[ ! " ${expected_apps[*]} " =~ " $app " ]]; then
+            extra_apps+=("$app")
+        fi
+    done
+    
+    if [ ${#extra_apps[@]} -eq 0 ]; then
+        echo "✅ No extra applications in the dock"
+    else
+        echo "❌ Extra applications in the dock:"
+        printf "  %s\n" "${extra_apps[@]}"
+        return 1
+    fi
+    
     return 0
 }
 

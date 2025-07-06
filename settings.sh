@@ -7,167 +7,177 @@ set -e
 # Source common functions
 source "utils.sh"
 
+# Backup existing settings
+backup_gnome_settings
+
+# Show backup and restore instructions
+show_backup_instructions
+
 echo_header "Configuring Ubuntu Settings"
 
+# Configure Workspace Settings
+# This section sets up the multi-workspace environment with 4 workspaces
+# and custom keyboard shortcuts for workspace management
 echo_header "Setting up Workspaces"
-# Set number of workspaces
+
+# Set the number of workspaces to 4
 gsettings set org.gnome.desktop.wm.preferences num-workspaces 4
 
 # Configure workspace switching shortcuts
+# Set up keyboard shortcuts for switching between workspaces and moving windows
 echo "Configuring workspace switching shortcuts..."
 for i in {1..4}; do
-    # Set Ctrl + Number to switch to workspace
+    # Ctrl + Number: Switch to workspace
 gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-$i "['<Control>$i']"
-    # Set Ctrl + Shift + Number to move window to workspace
+    # Ctrl + Shift + Number: Move active window to workspace
 gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-$i "['<Control><Shift>$i']"
 done
 
-# Configure keyboard repeat settings
-echo "Configuring keyboard repeat settings..."
-# Set repeat delay to 250ms (default is 500ms)
-gsettings set org.gnome.desktop.peripherals.keyboard repeat-delay 250
-# Set repeat interval to 30ms (default is 30ms)
-gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 30
-# Enable keyboard repeat
-gsettings set org.gnome.desktop.peripherals.keyboard repeat true
-
 # Configure hot corners
+# Set up corner shortcuts for quick access to different views
 echo "Configuring hot corners..."
-# Enable hot corners
-gsettings set org.gnome.shell enabled-extensions "['hot-corners@gnome-shell-extensions.gcampax.github.com']"
-# Set top-left corner to show overview
-gsettings set org.gnome.shell.extensions.hot-corners hot-corners "['top-left']"
-# Configure top-left corner action
-gsettings set org.gnome.shell.extensions.hot-corners corner-action-0 "overview"
+# Top-left corner: Show overview (Super+Shift+Home)
+gsettings set org.gnome.desktop.wm.keybindings move-to-corner-nw "['<Super><Shift>Home']"
+# Top-right corner: Show desktop (Super+Shift+End)
+gsettings set org.gnome.desktop.wm.keybindings move-to-corner-ne "['<Super><Shift>End']"
+# Bottom-left corner: Show applications (Super+Shift+Prior)
+gsettings set org.gnome.desktop.wm.keybindings move-to-corner-sw "['<Super><Shift>Prior']"
+# Bottom-right corner: Show notifications (Super+Shift+Next)
+gsettings set org.gnome.desktop.wm.keybindings move-to-corner-se "['<Super><Shift>Next']"
 
-echo_header "Configuring Other Settings"
+# Configure window manager preferences
+# Set window behavior and focus settings
+echo "Configuring window manager preferences..."
+# Click-to-focus mode (alternative to hover)
+gsettings set org.gnome.desktop.wm.preferences focus-mode 'click'
+# Raise window when clicked
+gsettings set org.gnome.desktop.wm.preferences raise-on-click true
+# Disable auto-raise (window raising when mouse hovers)
+gsettings set org.gnome.desktop.wm.preferences auto-raise false
+# Disable audible bell (beep sound)
+gsettings set org.gnome.desktop.wm.preferences audible-bell false
 
-# Configure dock settings
+# Disable recursive search in Files (nautilus)
+gsettings set org.gnome.nautilus.preferences recursive-search 'never'
+
+# Configure overview shortcuts
+# Set up keyboard shortcuts for accessing different views
+echo "Configuring overview shortcuts..."
+# Super+s: Toggle overview
+gsettings set org.gnome.shell.keybindings toggle-overview "['<Super>s']"
+# Super+a: Toggle application view
+gsettings set org.gnome.shell.keybindings toggle-application-view "['<Super>a']"
+# Super+v: Toggle message tray
+gsettings set org.gnome.shell.keybindings toggle-message-tray "['<Super>v']"
+
+# Configure startup applications
+echo "Configuring startup applications..."
+
+# Add startup applications
+echo "Adding essential startup applications..."
+
+# Add ULauncher
+if [ -f "~/.config/autostart/ulauncher.desktop" ]; then
+    echo "ULauncher already set for startup"
+else
+    mkdir -p ~/.config/autostart
+    cat > ~/.config/autostart/ulauncher.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=ULauncher
+Comment=Quick launch application
+Exec=/usr/bin/ulauncher
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=ULauncher
+Comment[en_US]=Quick launch application
+Name[en]=ULauncher
+Comment[en]=Quick launch application
+Icon=ulauncher
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+StartupWMClass=ulauncher
+EOF
+fi
+
+# Add JetBrains Toolbox
+if [ -f "~/.config/autostart/jetbrains-toolbox.desktop" ]; then
+    echo "JetBrains Toolbox already set for startup"
+else
+    cat > ~/.config/autostart/jetbrains-toolbox.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=JetBrains Toolbox
+Comment=JetBrains IDE management tool
+Exec=/opt/jetbrains-toolbox/jetbrains-toolbox
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=JetBrains Toolbox
+Comment[en_US]=JetBrains IDE management tool
+Name[en]=JetBrains Toolbox
+Comment[en]=JetBrains IDE management tool
+Icon=jetbrains-toolbox
+Terminal=false
+Categories=Development;
+StartupNotify=true
+StartupWMClass=jetbrains-toolbox
+EOF
+fi
+
+# Configure Dock Settings
+# This section sets up the GNOME dock (Dash to Dock) with custom appearance and behavior
+echo_header "Configuring Dock Settings"
+
+# Configure dock appearance and behavior
 echo "Configuring dock settings..."
-# Configure dock appearance
+# Show applications at top of dock
 gsettings set org.gnome.shell.extensions.dash-to-dock show-apps-at-top true
-gsettings set org.gnome.shell.extensions.dash-to-dock show-favorites false
-gsettings set org.gnome.shell.extensions.dash-to-dock show-mounts false
-# Configure auto-hide
+# Show favorite applications in dock
+gsettings set org.gnome.shell.extensions.dash-to-dock show-favorites true
+# Show mounted drives in dock
+gsettings set org.gnome.shell.extensions.dash-to-dock show-mounts true
+
+# Configure auto-hide behavior
 gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
-gsettings set org.gnome.shell.extensions.dash-to-dock autohide-sensitivity 20
+# Set hide delay (in seconds)
+gsettings set org.gnome.shell.extensions.dash-to-dock hide-delay 0.2
 
-echo_header "Final Settings"
-# Set some additional settings
+# Clear existing dock favorites
+echo "Clearing existing dock favorites..."
+gsettings set org.gnome.shell favorite-apps "[]"
+
+# Set our predefined favorites list
+echo "Setting up dock favorites..."
+# Set the exact list of applications to pin to dock
+gsettings set org.gnome.shell favorite-apps "['code.desktop', 'slack_slack.desktop', 'discord_discord.desktop', 'google-chrome.desktop', 'firefox_firefox.desktop', 'spotify_spotify.desktop', 'obsidian_obsidian.desktop', 'windsurf_windsurf.desktop', 'cursor_cursor.desktop', 'localsend_localsend.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'gnome-control-center_gnome-control-center.desktop']"
+
+# Verify dock configuration
+echo_header "Verifying Dock Configuration"
+verify_dock_apps
+
+echo_header "Final System Settings"
+# Set final system-wide settings
+echo "Configuring final system settings..."
+# Disable animations for better performance
 gsettings set org.gnome.desktop.interface enable-animations false
-gsettings set org.gnome.desktop.wm.preferences button-layout 'close,minimize,maximize:'
+# Show date in clock
+gsettings set org.gnome.desktop.interface clock-show-date true
+# Show weekday in clock
+gsettings set org.gnome.desktop.interface clock-show-weekday true
 
-# Configure screenshot settings
-echo_header "Configuring Screenshot Settings"
-# Set Alt+Shift+4 for area screenshot to clipboard
-gsettings set org.gnome.settings-daemon.plugins.media-keys area-screenshot-clip "['<Alt><Shift>4']"
-# Disable default screenshot shortcuts
-gsettings set org.gnome.settings-daemon.plugins.media-keys screenshot "['']"
-gsettings set org.gnome.settings-daemon.plugins.media-keys area-screenshot "['']"
+# Configure window behavior
+# This section sets up window behavior and placement settings
+echo "Configuring window behavior..."
 
-# Configure workspace assignments
-echo_header "Configuring Workspace Assignments"
+# Center new windows when launched
+gsettings set org.gnome.mutter center-new-windows true
 
-# To add a new application to a workspace:
-# 1. Find the window class name using: xprop WM_CLASS
-# 2. Add the window class to window_classes array with its name
-# 3. Add the workspace assignment to workspace_assignments array
-
-# Format for window_classes:
-# window_classes["command-name"]="Window Class Name"
-# Format for workspace_assignments:
-# workspace_assignments["command-name"]="workspace-number"
-
-# The workspace numbers are:
-# 1 = Leftmost workspace
-# 2 = Second workspace
-# 3 = Third workspace
-# 4 = Rightmost workspace
-
-# Workspace 1: Browsing
-window_classes["firefox"]="Firefox"
-window_classes["google-chrome"]="Google-chrome"
-workspace_assignments["firefox"]="1"
-workspace_assignments["google-chrome"]="1"
-
-# Workspace 2: Coding
-# Note: JetBrains Toolbox will float on all workspaces
-window_classes["code"]="Code"
-window_classes["intellij-idea-community"]="IntelliJ IDEA Community Edition"
-window_classes["pycharm-community"]="PyCharm Community Edition"
-window_classes["datagrip"]="DataGrip"
-window_classes["postman"]="Postman"
-workspace_assignments["code"]="2"
-workspace_assignments["intellij-idea-community"]="2"
-workspace_assignments["pycharm-community"]="2"
-workspace_assignments["datagrip"]="2"
-workspace_assignments["postman"]="2"
-
-# Workspace 3: Terminal
-window_classes["gnome-terminal"]="Terminal"
-workspace_assignments["gnome-terminal"]="3"
-
-# Workspace 4: Media
-window_classes["vlc"]="VLC media player"
-window_classes["obs"]="OBS Studio"
-window_classes["steam"]="Steam"
-window_classes["spotify"]="Spotify"
-window_classes["slack"]="Slack"
-window_classes["discord"]="Discord"
-workspace_assignments["vlc"]="4"
-workspace_assignments["obs"]="4"
-workspace_assignments["steam"]="4"
-workspace_assignments["spotify"]="4"
-workspace_assignments["slack"]="4"
-workspace_assignments["discord"]="4"
-
-
-# Apply workspace assignments
-for window_class in "${!window_classes[@]}"; do
-    if [ -n "${workspace_assignments[$window_class]}" ]; then
-        echo "Assigning ${window_classes[$window_class]} to workspace ${workspace_assignments[$window_class]}"
-        gsettings set org.gnome.shell.window-placement "window-classes" "{'${window_classes[$window_class]}': ${workspace_assignments[$window_class]}}"
-    fi
-done
-
-# Function to verify workspace assignments
-verify_workspace_assignment() {
-    local app_name="$1"
-    local expected_workspace="$2"
-    
-    # Get current workspace assignments
-    local current_assignments=$(gsettings get org.gnome.shell.window-placement window-classes)
-    
-    # Check if the assignment exists
-    if echo "$current_assignments" | grep -q "${app_name}: ${expected_workspace}"; then
-        echo "✓ $app_name is correctly assigned to workspace $expected_workspace"
-    else
-        echo "✗ Warning: $app_name is not assigned to workspace $expected_workspace"
-        echo "Current assignments: $current_assignments"
-    fi
-}
-
-# Verify workspace assignments
-echo_header "Verifying Workspace Assignments"
-for window_class in "${!window_classes[@]}"; do
-    if [ -n "${workspace_assignments[$window_class]}" ]; then
-        verify_workspace_assignment "${window_classes[$window_class]}" "${workspace_assignments[$window_class]}"
-    fi
-done
+# Configure terminal shortcut
+echo "Configuring terminal shortcut..."
+# Set Ctrl+Alt+T as default terminal shortcut
+gsettings set org.gnome.settings-daemon.plugins.media-keys terminal "['<Primary><Alt>t']"
 
 echo "Ubuntu settings configuration completed successfully!"
-
-# Manual Installation Notes:
-# 1. GNOME Extensions to install manually:
-#    - Tactile (Tile windows): https://extensions.gnome.org/extension/4548/tactile/
-#    - Space Bar (Workspace naming and enumeration): https://extensions.gnome.org/extension/5090/space-bar/
-#    - Alphabetic App Grid - https://extensions.gnome.org/extension/4269/alphabetical-app-grid/
-#    
-# 2. To install any extension:
-#    - Visit the extension's page on https://extensions.gnome.org/
-#    - Click the "ON/OFF" switch to install
-#    - Enable the extension in GNOME Tweaks if needed
-#    
-# 3. After installation:
-#    - Some extensions may require GNOME Shell restart
-#    - Use GNOME Tweaks to configure extension settings

@@ -19,6 +19,26 @@ echo_header "Starting Main Installation"
 # Install system packages and configurations
 bash system.sh
 
+# Copy and source dotfiles
+echo_header "Installing and Sourcing Dotfiles"
+for file in "dotfiles"/*; do
+    filename="$(basename "$file")"
+    if [ "$filename" != "install.sh" ]; then
+        echo "Copying and sourcing $filename"
+        cp -f "$file" "~/$filename"
+        # Source the file if it's a shell configuration file
+        case "$filename" in
+            .bashrc|.bash_profile|.zshrc|.profile|.pam_environment|.bash_aliases|.inputrc)
+                echo "Sourcing $filename"
+                source "~/$filename"
+                ;;
+            *)
+                echo "Not sourcing $filename (not a shell config file)"
+                ;;
+        esac
+    fi
+done
+
 # Install SDKMAN and development tools
 if [ -f sdk.sh ]; then
     echo_header "Installing SDKMAN and Development Tools"
@@ -43,25 +63,6 @@ else
     echo "Warning: settings.sh not found. Skipping Ubuntu settings configuration."
 fi
 
-# Copy dotfiles
-echo_header "Installing Dotfiles"
-for file in "dotfiles"/*; do
-    filename="$(basename "$file")"
-    if [ "$filename" != "install.sh" ]; then
-        echo "Copying $filename to ~/$filename"
-        cp -f "$file" "~/$filename"
-    fi
-done
-
-# Verify installation
-echo_header "Final Verification"
-for cmd in code spotify consul; do
-    if command -v "$cmd" &> /dev/null; then
-        echo "$cmd is installed successfully"
-    else
-        echo "Warning: $cmd is not installed"
-    fi
-done
 
 echo ""
 echo "Setup completed successfully!"
