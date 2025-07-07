@@ -1,117 +1,57 @@
 #!/usr/bin/env bash
 # Ubuntu Developer Machine Setup Orchestration Script
 
-# Exit on error
-set -e
+# Exit on error, undefined variables, and pipe failures
+set -euo pipefail
 
 # Source common functions
 source "utils.sh"
 
-echo_header "Starting Ubuntu Developer Machine Setup"
-
-echo_header "Checking Prerequisites"
-check_root
-check_directory
-check_system_prerequisites
-
-echo_header "Starting Main Installation"
-
-# Install system packages and configurations
-bash system.sh
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Copy and source dotfiles
-echo_header "Installing and Sourcing Dotfiles"
-
-# Check if dotfiles directory exists
-if [ ! -d "dotfiles" ]; then
-    log_error "dotfiles directory not found"
-    exit 1
-fi
-
-# Enable dotglob to match hidden files (dotfiles)
-shopt -s dotglob
-
-# Check if dotfiles directory has any files
-if [ -z "$(ls -A dotfiles/ 2>/dev/null)" ]; then
-    log_info "dotfiles directory is empty"
-    shopt -u dotglob  # Reset dotglob
-    exit 0
-fi
-
-for file in dotfiles/*; do
-    # Skip if no files match (in case of empty directory)
-    [ -e "$file" ] || continue
+# Function to run a script
+run_script() {
+    local script_name="$1"
+    local description="$2"
     
-    filename="$(basename "$file")"
-    echo "Copying and sourcing $filename"
-    cp -f "$file" "$HOME/$filename"
-    # Source the file if it's a shell configuration file
-    case "$filename" in
-        .bashrc|.bash_profile|.zshrc|.profile|.pam_environment|.bash_aliases|.inputrc)
-            echo "Sourcing $filename"
-            source "$HOME/$filename"
-            ;;
-        *)
-            echo "Not sourcing $filename (not a shell config file)"
-            ;;
-    esac
-done
+    if [ ! -f "$script_name" ]; then
+        log_error "❌ Script $script_name not found!"
+        return 1
+    fi
+    
+    echo_header "🚀 Starting: $description"
+    echo # Add spacing
+    
+    # Run script with live output
+    if bash "$script_name"; then
+        echo # Add spacing
+        echo_header "✅ Completed: $description"
+    else
+        echo # Add spacing
+        log_error "❌ Failed: $description"
+        return 1
+    fi
+    
+    # Pause for user to see result
+    echo "Press Enter to continue..."
+    read -r
+}
 
-# Reset dotglob to its original state
-shopt -u dotglob
+# Main execution
+main() {
+    echo_header "🚀 Starting full installation..."
+    
+    local scripts=("system.sh" "dotfiles.sh" "sdk.sh" "git.sh" "settings.sh")
+    local descriptions=("System packages" "Dotfiles" "SDKMAN" "GitHub setup" "OS settings")
+    
+    for i in "${!scripts[@]}"; do
+        if [ -f "${scripts[$i]}" ]; then
+            echo
+            echo_header "Step $((i+1))/5: ${descriptions[$i]}"
+            run_script "${scripts[$i]}" "${descriptions[$i]}"
+        fi
+    done
+    
+    echo_header "🎉 Full installation completed!"
+}
 
-log_info "Dotfiles installation completed!"
-
-# Install SDKMAN and development tools
-if [ -f sdk.sh ]; then
-    echo_header "Installing SDKMAN and Development Tools"
-    bash sdk.sh
-else
-    echo "Warning: sdk.sh not found. Skipping SDKMAN installation."
-fi
-
-# Setup GitHub SSH key
-if [ -f git.sh ]; then
-    echo_header "Setting up GitHub SSH Key"
-    bash git.sh
-else
-    echo "Warning: git.sh not found. Skipping GitHub SSH key setup."
-fi
-
-# Configure Ubuntu settings
-if [ -f settings.sh ]; then
-    echo_header "Configuring Ubuntu Settings"
-    bash settings.sh
-else
-    echo "Warning: settings.sh not found. Skipping Ubuntu settings configuration."
-fi
-
-
-echo ""
-echo "Setup completed successfully!"
-echo "Note: Some changes may require a logout/restart to take effect."
-echo "You may want to restart your terminal session to apply all changes."
+# Run main function
+main

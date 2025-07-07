@@ -2,11 +2,94 @@
 
 # Common utility functions for setup scripts
 
-# Function to log messages with header
+# ANSI color codes
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+BLUE=$'\033[0;34m'
+CYAN=$'\033[0;36m'
+BOLD=$'\033[1m'
+RESET=$'\033[0m'
+
+# Function to create a styled header
 echo_header() {
-    echo ""
-    echo "${1}"
-    echo "$(printf '=%.0s' {1..${#1}})"
+    printf "\n${BLUE}================================================================================${RESET}\n"
+    printf "${BLUE}${BOLD}  %s${RESET}\n" "$1"
+    printf "${BLUE}================================================================================${RESET}\n\n"
+}
+
+# Function to log messages with shell colors and indentation
+log_info() {
+    printf "  ${CYAN}--> %s${RESET}\n" "$1"
+}
+
+log_warn() {
+    printf "  ${YELLOW}>> %s${RESET}\n" "$1" >&2
+}
+
+log_error() {
+    printf "  ${RED}!! %s${RESET}\n" "$1" >&2
+}
+
+# Function for success messages
+log_success() {
+    printf "  ${GREEN}++ %s${RESET}\n" "$1"
+}
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to run a command with output
+run_with_output() {
+    local cmd="$*"
+    log_info "Running: $cmd"
+    "$@"
+}
+
+# Function to run a command with sudo after ensuring privileges
+sudo_run() {
+    ensure_sudo
+    log_info "Running command: $*"
+    sudo "$@"
+}
+
+# Function to run a script with sudo check
+run_script() {
+    local script_name="$1"
+    
+    # Check if script exists
+    if [ ! -f "$script_name" ]; then
+        log_error "❌ Script $script_name not found!"
+        return 1
+    fi
+    
+    # Check if script needs sudo
+    if grep -q "sudo" "$script_name"; then
+        ensure_sudo
+    fi
+    
+    # Run script with live output
+    bash "$script_name"
+}
+
+# Function to create a styled header with shell colors
+echo_header() {
+    echo "${BLUE}=== $1 ===${RESET}"
+}
+
+# Function to log messages with shell colors
+log_info() {
+    echo "${GREEN}[INFO] $1${RESET}"
+}
+
+log_warn() {
+    echo "${YELLOW}[WARN] $1${RESET}"
+}
+
+log_error() {
+    echo "${RED}[ERROR] $1${RESET}"
 }
 
 # Function to check if running as root
@@ -27,10 +110,7 @@ check_directory() {
 
 # Function to verify command exists
 check_command() {
-    if ! command -v "$1" &> /dev/null; then
-        echo "Error: $1 is not installed"
-        exit 1
-    fi
+    command -v "$1" >/dev/null 2>&1
 }
 
 # Function to verify file exists

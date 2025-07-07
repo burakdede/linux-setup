@@ -63,8 +63,45 @@ set expandtab
 set shiftround
 set smarttab
 
-"display extra whitespace
-" set list listchars=tab:»·,trail:·,nbsp:·
+" Enable mouse support
+set mouse=a
+
+" Enable clipboard support
+set clipboard+=unnamedplus
+
+" Enable line wrapping
+set wrap
+set linebreak
+
+" Enable spell checking for markdown and text files
+autocmd FileType markdown,text setlocal spell spelllang=en_us
+
+" Enable auto-completion
+inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+
+" Enable folding
+set foldmethod=syntax
+set foldlevel=99
+
+" Enable split window navigation
+set splitbelow
+set splitright
+
+" Enable auto-indent
+filetype indent on
+
+" Enable auto-formatting
+autocmd FileType python,javascript,json,yaml,html,css,markdown setlocal formatoptions+=cro
+
+" Enable auto-pairing of quotes and brackets
+inoremap " ""<Left>
+inoremap ' ''<Left>
+inoremap ( ()<Left>
+inoremap [ []<Left>
+inoremap { {}<Left>
+
+" Enable auto-completion of closing brackets
+inoremap <expr> <CR> getline('.') =~ '[\[\]()]$' ? "<CR><Esc>O" : "<CR>"
 
 "show list of completetions in as much as possible
 set wildmode=list:longest,full

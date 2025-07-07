@@ -8,7 +8,6 @@ docker
 
 
 # Communication tools
-teams
 zoom-client
 discord
 slack
