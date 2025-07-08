@@ -266,6 +266,55 @@ echo_header "Configuring keyboard shortcuts..."
 # Set Alt+Q to close window
 gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>q']"
 
+echo_header "Configuring window management shortcuts..."
+
+
+# Configure Tiling Assistant shortcuts (if extension is installed)
+if gnome-extensions list | grep -q "tiling-assistant"; then
+    log_info "Configuring Tiling Assistant shortcuts..."
+
+    # Ensure tiling is enabled
+    gsettings set org.gnome.mutter edge-tiling true      
+
+
+    # Disable GNOME's built-in tiling and maximize shortcuts to prevent conflicts with Tiling Assistant
+    gsettings set org.gnome.desktop.wm.keybindings move-to-side-w "['disabled']"
+    gsettings set org.gnome.desktop.wm.keybindings move-to-side-e "['disabled']"
+    gsettings set org.gnome.desktop.wm.keybindings maximize "['disabled']"
+    gsettings set org.gnome.desktop.wm.keybindings unmaximize "['disabled']"
+
+    # Window Management
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-maximize "['<Super>Up']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant restore-window "['<Super>Down']"
+    
+    # Tiling Shortcuts
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-left-half "['<Super>Left']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-right-half "['<Super>Right']"
+
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-top-half "['<Super><Shift>Up']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottom-half "['<Super><Shift>Down']"
+    
+    # Quarter Tiling
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-topleft-quarter "['<Super><Control>Left']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-topright-quarter "['<Super><Control>Right']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottomleft-quarter "['<Super><Control><Shift>Left']"
+    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottomright-quarter "['<Super><Control><Shift>Right']"
+    
+    # Additional Tiling Assistant Settings
+    gsettings set org.gnome.shell.extensions.tiling-assistant enable-tiling-popup true
+    gsettings set org.gnome.shell.extensions.tiling-assistant window-gap 5
+    gsettings set org.gnome.shell.extensions.tiling-assistant single-screen-gap 5
+    
+else
+    log_warn "Tiling Assistant extension not found. Using default GNOME tiling."
+    # Fallback to GNOME's built-in tiling if Tiling Assistant is not installed
+    gsettings set org.gnome.desktop.wm.keybindings move-to-side-w "['<Super>Left']"
+    gsettings set org.gnome.desktop.wm.keybindings move-to-side-e "['<Super>Right']"
+    gsettings set org.gnome.desktop.wm.keybindings maximize "['<Super>Up']"
+    gsettings set org.gnome.desktop.wm.keybindings unmaximize "['<Super>Down']"
+fi
+
+
 # Disable recursive search in Files (nautilus)
 gsettings set org.gnome.nautilus.preferences recursive-search 'never'
 
