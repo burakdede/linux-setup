@@ -156,7 +156,7 @@ sudo mkdir -p /usr/share/glib-2.0/schemas
 # First, create schemas directory if it doesn't exist
 sudo mkdir -p /usr/share/glib-2.0/schemas
 
-# Copy schema files from each extension
+# Process each extension's schemas
 for ext in "${extensions_to_install[@]}"; do
     extension_dir=~/.local/share/gnome-shell/extensions/$ext
     if [ -d "$extension_dir" ]; then
@@ -166,14 +166,17 @@ for ext in "${extensions_to_install[@]}"; do
         schema_dir="$extension_dir/schemas"
         if [ -d "$schema_dir" ]; then
             log_info "Found schemas directory: $schema_dir"
-            # Copy all .gschema.xml files from schemas directory
-            sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
             
-            # Check if any files were copied
-            if [ $? -eq 0 ]; then
-                log_success "Successfully copied schema files from $schema_dir"
+            # Compile schemas in the extension's directory first
+            (cd "$schema_dir" && glib-compile-schemas . 2>/dev/null) || true
+            
+            # Copy schema files to system schemas directory
+            if ls "$schema_dir"/*.gschema.xml 1> /dev/null 2>&1; then
+                log_info "Copying schema files to system directory..."
+                sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+                log_success "Successfully processed schema files for $ext"
             else
-                log_warn "Warning: No schema files found in $schema_dir"
+                log_warn "No schema files found in $schema_dir"
             fi
         else
             log_info "No schemas directory found for $ext"
@@ -184,21 +187,25 @@ for ext in "${extensions_to_install[@]}"; do
                 log_info "Found schema file: $schema_file"
                 sudo cp -v "$schema_file" /usr/share/glib-2.0/schemas/
             else
-                log_warn "Warning: No schema file found for $ext"
+                log_warn "No schema file found for $ext"
             fi
         fi
     else
-        log_warn "Warning: Extension directory not found: $extension_dir"
+        log_warn "Extension directory not found: $extension_dir"
     fi
 done
 
 # Set proper permissions
-sudo chown root:root /usr/share/glib-2.0/schemas/*
+sudo chown -R root:root /usr/share/glib-2.0/schemas/
 sudo chmod 644 /usr/share/glib-2.0/schemas/*
 
-# Compile all schemas
+# Compile all system schemas
+log_info "Compiling system schemas..."
 sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-sleep 2
+
+# Give GNOME Shell time to pick up the changes
+log_info "Waiting for GNOME Shell to register schemas..."
+sleep 5
 
 # Configure Tactile
 gsettings set org.gnome.shell.extensions.tactile col-0 1
