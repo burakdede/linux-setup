@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Source common functions
-source "utils.sh"
+source "utils/utils.sh"
 
 # Function to run a script
 run_script() {
@@ -39,8 +39,8 @@ run_script() {
 main() {
     echo_header "🚀 Starting full installation..."
     
-    local scripts=("system.sh" "dotfiles.sh" "sdk.sh" "git.sh" "settings.sh")
-    local descriptions=("System packages" "Dotfiles" "SDKMAN" "GitHub setup" "OS settings")
+    local scripts=("system/system.sh" "dotfiles/dotfiles.sh" "sdk/sdk.sh" "git/git.sh" "web2app/web2app.sh" "utils/settings.sh")
+    local descriptions=("System packages" "Dotfiles" "SDKMAN" "GitHub setup" "Web2App" "OS settings")
     
     for i in "${!scripts[@]}"; do
         if [ -f "${scripts[$i]}" ]; then

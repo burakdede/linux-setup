@@ -5,14 +5,14 @@
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
+# Directory containing this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Source common functions first
-source "utils.sh"
+source "$SCRIPT_DIR/../utils/utils.sh"
 
 # Trap errors
 trap handle_error ERR
-
-# Directory containing this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Using logging functions from utils.sh
 
@@ -34,7 +34,7 @@ fi
 
 # Install APT packages
 echo_header "Installing APT Packages"
-if [ -f apt-packages.txt ]; then
+if [ -f "$SCRIPT_DIR/apt-packages.txt" ]; then
     log_info "Installing packages from apt-packages.txt..."
     
     while IFS= read -r package; do
@@ -44,14 +44,14 @@ if [ -f apt-packages.txt ]; then
                 log_warn "Failed to install APT package $package"
             fi
         fi
-    done < apt-packages.txt
+    done < "$SCRIPT_DIR/apt-packages.txt"
 else
     log_warn "apt-packages.txt not found, skipping APT package installation"
 fi
 
 # Install Snap packages
 echo_header "Installing Snap Packages"
-if [ -f snap-packages.txt ]; then
+if [ -f "$SCRIPT_DIR/snap-packages.txt" ]; then
     log_info "Installing packages from snap-packages.txt..."
     
     while IFS= read -r package; do
@@ -61,7 +61,7 @@ if [ -f snap-packages.txt ]; then
                 log_warn "Failed to install Snap package $package"
             fi
         fi
-    done < snap-packages.txt
+    done < "$SCRIPT_DIR/snap-packages.txt"
 else
     log_warn "snap-packages.txt not found, skipping Snap package installation"
 fi
@@ -118,7 +118,7 @@ echo_header "Installing VS Code Extensions"
 if ! command_exists code; then
     log_warn "VS Code is not installed. Skipping extension installation."
 else
-    if [ -f vscode-extensions.txt ]; then
+    if [ -f "$SCRIPT_DIR/vscode-extensions.txt" ]; then
         log_info "Installing VS Code extensions..."
         
         # Create extensions directory
@@ -142,7 +142,7 @@ else
             if ! code --install-extension "$extension" --force; then
                 log_warn "Failed to install extension: $extension"
             fi
-        done < vscode-extensions.txt
+        done < "$SCRIPT_DIR/vscode-extensions.txt"
     else
         log_warn "vscode-extensions.txt not found, skipping extension installation"
     fi

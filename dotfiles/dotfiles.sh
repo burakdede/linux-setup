@@ -4,33 +4,39 @@
 # Exit on error
 set -e
 
+# Directory containing this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Source common functions
-source "utils.sh"
+source "$SCRIPT_DIR/../utils/utils.sh"
 
 # Copy and source dotfiles
 echo_header "Installing and Sourcing Dotfiles"
 
-# Check if dotfiles directory exists
-if [ ! -d "dotfiles" ]; then
-    log_error "dotfiles directory not found"
-    exit 1
-fi
+# The dotfiles are in the same directory as the script
+DOTFILES_DIR="$SCRIPT_DIR"
 
 # Enable dotglob to match hidden files (dotfiles)
 shopt -s dotglob
 
 # Check if dotfiles directory has any files
-if [ -z "$(ls -A dotfiles/ 2>/dev/null)" ]; then
+if [ -z "$(ls -A "$DOTFILES_DIR"/ 2>/dev/null)" ]; then
     log_info "dotfiles directory is empty"
     shopt -u dotglob  # Reset dotglob
     exit 0
 fi
 
-for file in dotfiles/*; do
+for file in "$DOTFILES_DIR"/*; do
     # Skip if no files match (in case of empty directory)
     [ -e "$file" ] || continue
     
-    filename="$(basename "$file")"
+        filename="$(basename "$file")"
+
+    # Skip the script itself
+    if [ "$filename" == "dotfiles.sh" ]; then
+        continue
+    fi
+
     log_info "Copying $filename to $HOME/"
     cp -f "$file" "$HOME/$filename"
     

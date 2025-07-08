@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "[DEBUG] Sourcing UPDATED utils.sh - v2.0"
+
 # Common utility functions for setup scripts
 
 # ANSI color codes
@@ -13,27 +15,28 @@ RESET=$'\033[0m'
 
 # Function to create a styled header
 echo_header() {
-    printf "\n${BLUE}================================================================================${RESET}\n"
-    printf "${BLUE}${BOLD}  %s${RESET}\n" "$1"
-    printf "${BLUE}================================================================================${RESET}\n\n"
+    local title="$1"
+    printf "\n${BLUE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RESET}\n"
+    printf "${BLUE}┃ 🚀  %-72s ┃${RESET}\n" "${BOLD}${title}${RESET}"
+    printf "${BLUE}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 }
 
 # Function to log messages with shell colors and indentation
 log_info() {
-    printf "  ${CYAN}--> %s${RESET}\n" "$1"
+    printf "${CYAN}[INFO]${RESET} %s\n" "$1"
 }
 
 log_warn() {
-    printf "  ${YELLOW}>> %s${RESET}\n" "$1" >&2
+    printf "${YELLOW}[WARN]${RESET} %s\n" "$1" >&2
 }
 
 log_error() {
-    printf "  ${RED}!! %s${RESET}\n" "$1" >&2
+    printf "${RED}${BOLD}[ERROR]${RESET} %s\n" "$1" >&2
 }
 
 # Function for success messages
 log_success() {
-    printf "  ${GREEN}++ %s${RESET}\n" "$1"
+    printf "${GREEN}[OK]${RESET} %s\n" "$1"
 }
 
 # Function to check if command exists
@@ -74,23 +77,6 @@ run_script() {
     bash "$script_name"
 }
 
-# Function to create a styled header with shell colors
-echo_header() {
-    echo "${BLUE}=== $1 ===${RESET}"
-}
-
-# Function to log messages with shell colors
-log_info() {
-    echo "${GREEN}[INFO] $1${RESET}"
-}
-
-log_warn() {
-    echo "${YELLOW}[WARN] $1${RESET}"
-}
-
-log_error() {
-    echo "${RED}[ERROR] $1${RESET}"
-}
 
 # Function to check if running as root
 check_root() {
@@ -314,10 +300,11 @@ check_system_prerequisites() {
     install_package "ubuntu-restricted-extras"
     install_package "curl"
     install_package "wget"
+    install_package "vim"
     
     # Verify installations
     echo_header "Verifying Prerequisites"
-    for tool in ssh-keygen ssh ssh-agent xclip; do
+    for tool in ssh-keygen ssh ssh-agent xclip wget curl vim; do
         if ! check_command "$tool"; then
             echo "Warning: $tool is still missing after installation attempt"
         fi

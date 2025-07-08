@@ -4,8 +4,11 @@
 # Exit on error
 set -e
 
+# Directory containing this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Source common functions
-source "utils.sh"
+source "$SCRIPT_DIR/utils.sh"
 
 # Backup existing settings
 backup_gnome_settings
@@ -41,9 +44,19 @@ done
 
 
 # ========================= Configure GNOME Extensions =========================
-sudo apt install -y gnome-shell-extension-manager pipx
-pipx install gnome-extensions-cli --force --system-site-packages
+echo_header "Setting up GNOME Extensions"
+log_info "Installing GNOME Extension Manager and pipx..."
+if ! sudo apt-get install -y gnome-shell-extension-manager pipx; then
+    log_warn "Failed to install GNOME extension dependencies. Skipping extension setup."
+    return
+fi
+
+log_info "Installing gnome-extensions-cli with pipx..."
+pipx install gnome-extensions-cli --force
 pipx ensurepath
+
+# Add gext to the current shell's PATH to ensure it's found
+export PATH="$PATH:$HOME/.local/bin"
 source ~/.bashrc
 
 # First disable all extensions
@@ -101,7 +114,7 @@ for ext in "${extensions_to_install[@]}"; do
 done
 
 # Wait for all cleanup operations to complete
-echo "Waiting for cleanup to complete..."
+log_info "Waiting for cleanup to complete..."
 sleep 2
 
 echo ""
@@ -111,11 +124,11 @@ sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
 # Install new extensions with proper error handling
 for ext in "${extensions_to_install[@]}"; do
-    echo "Installing extension: $ext"
+    log_info "Installing extension: $ext"
     
     # Install the extension
     if ! gext install "$ext"; then
-        echo "Error: Failed to install $ext"
+        log_warn "Failed to install $ext"
         continue
     fi
     
@@ -124,18 +137,18 @@ for ext in "${extensions_to_install[@]}"; do
     
     # Enable the extension
     if ! gext enable "$ext"; then
-        echo "Error: Failed to enable $ext"
+        log_warn "Failed to enable $ext"
         continue
     fi
     
     # Wait for enable to complete
     sleep 2
     
-    echo "Successfully installed and enabled: $ext"
+    log_success "Successfully installed and enabled: $ext"
 done
 
 # Wait for extensions to be fully installed and loaded
-echo "Waiting for extensions to be fully installed and loaded..."
+log_info "Waiting for extensions to be fully installed and loaded..."
 
 # Create schemas directory if it doesn't exist
 sudo mkdir -p /usr/share/glib-2.0/schemas
@@ -147,35 +160,35 @@ sudo mkdir -p /usr/share/glib-2.0/schemas
 for ext in "${extensions_to_install[@]}"; do
     extension_dir=~/.local/share/gnome-shell/extensions/$ext
     if [ -d "$extension_dir" ]; then
-        echo "Processing extension $ext..."
+        log_info "Processing extension $ext..."
         
         # First try schemas subdirectory
         schema_dir="$extension_dir/schemas"
         if [ -d "$schema_dir" ]; then
-            echo "Found schemas directory: $schema_dir"
+            log_info "Found schemas directory: $schema_dir"
             # Copy all .gschema.xml files from schemas directory
             sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
             
             # Check if any files were copied
             if [ $? -eq 0 ]; then
-                echo "Successfully copied schema files from $schema_dir"
+                log_success "Successfully copied schema files from $schema_dir"
             else
-                echo "Warning: No schema files found in $schema_dir"
+                log_warn "Warning: No schema files found in $schema_dir"
             fi
         else
-            echo "No schemas directory found for $ext"
+            log_info "No schemas directory found for $ext"
             
             # As a fallback, check root of extension directory
             schema_file="$extension_dir/org.gnome.shell.extensions.$(echo $ext | sed 's/@.*//').gschema.xml"
             if [ -f "$schema_file" ]; then
-                echo "Found schema file: $schema_file"
+                log_info "Found schema file: $schema_file"
                 sudo cp -v "$schema_file" /usr/share/glib-2.0/schemas/
             else
-                echo "Warning: No schema file found for $ext"
+                log_warn "Warning: No schema file found for $ext"
             fi
         fi
     else
-        echo "Warning: Extension directory not found: $extension_dir"
+        log_warn "Warning: Extension directory not found: $extension_dir"
     fi
 done
 
@@ -234,22 +247,8 @@ gsettings set org.gnome.shell.extensions.tophat network-usage-unit bits
 gsettings set org.gnome.shell.extensions.alphabetical-app-grid folder-order-position 'end'
 
 
-
-# ========================= Configure hot corners =========================
-echo "Configuring hot corners..."
-# Top-left corner: Show overview (Super+Shift+Home)
-gsettings set org.gnome.desktop.wm.keybindings move-to-corner-nw "['<Super><Shift>Home']"
-# Top-right corner: Show desktop (Super+Shift+End)
-gsettings set org.gnome.desktop.wm.keybindings move-to-corner-ne "['<Super><Shift>End']"
-# Bottom-left corner: Show applications (Super+Shift+Prior)
-gsettings set org.gnome.desktop.wm.keybindings move-to-corner-sw "['<Super><Shift>Prior']"
-# Bottom-right corner: Show notifications (Super+Shift+Next)
-gsettings set org.gnome.desktop.wm.keybindings move-to-corner-se "['<Super><Shift>Next']"
-
-
-
 # ========================= Configure window manager preferences =========================
-echo "Configuring window manager preferences..."
+echo_header "Configuring window manager preferences..."
 # Configure workspace visibility in app switcher and window switcher
 gsettings set org.gnome.shell.app-switcher current-workspace-only false
 gsettings set org.gnome.shell.window-switcher current-workspace-only false
@@ -265,10 +264,8 @@ gsettings set org.gnome.desktop.wm.preferences audible-bell false
 # Disable recursive search in Files (nautilus)
 gsettings set org.gnome.nautilus.preferences recursive-search 'never'
 
-
-
 # ========================= Configure overview shortcuts =========================
-echo "Configuring overview shortcuts..."
+echo_header "Configuring overview shortcuts..."
 # Super+s: Toggle overview
 gsettings set org.gnome.shell.keybindings toggle-overview "['<Super>s']"
 # Super+a: Toggle application view
@@ -276,12 +273,10 @@ gsettings set org.gnome.shell.keybindings toggle-application-view "['<Super>a']"
 # Super+v: Toggle message tray
 gsettings set org.gnome.shell.keybindings toggle-message-tray "['<Super>v']"
 
-
-
 # ========================= Configure Dock Settings =========================
 echo_header "Configuring Dock Settings"
 # Configure dock appearance and behavior
-echo "Configuring dock settings..."
+log_info "Configuring dock settings..."
 # Set Dock to bottom of the screen
 gsettings set org.gnome.shell.extensions.dash-to-dock dock-position BOTTOM
 # Auto-hide dock
@@ -311,10 +306,8 @@ gsettings set org.gnome.shell.extensions.dash-to-dock transparency-mode 'FIXED'
 # Set dock not to extend height
 gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
 
-
-
 # ========================= Screenshot and Recording =========================
-echo "Screenshot and recording shortcuts..."
+echo_header "Screenshot and recording shortcuts..."
 # Screenshot Interactively (Shift+Alt+4)
 gsettings set org.gnome.shell.keybindings show-screenshot-ui "['<Shift><Alt>4']"
 # Screenshot Window (Shift+Alt+3)
@@ -324,21 +317,71 @@ gsettings set org.gnome.shell.keybindings screenshot "['<Shift><Alt>2']"
 # Screenrecord (Shift+Alt+5)
 gsettings set org.gnome.shell.keybindings show-screen-recording-ui "['<Shift><Alt>5']"
 
-
 # ========================= Dock Favorites =========================
-echo "Clearing existing dock favorites..."
-gsettings set org.gnome.shell favorite-apps "[]"
-# Set our predefined favorites list
-echo "Setting up dock favorites..."
-# Set the exact list of applications to pin to dock
-gsettings set org.gnome.shell favorite-apps "['google-chrome.desktop', 'firefox_firefox.desktop', 'code.desktop', 'slack_slack.desktop', 'discord_discord.desktop', 'spotify_spotify.desktop', 'obsidian_obsidian.desktop', 'windsurf.desktop', 'cursor.desktop', 'localsend_localsend.desktop', 'jetbrains-toolbox.desktop', 'obs-studio_obs-studio.desktop', 'steam_steam.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Settings.desktop']"
+echo_header "Configuring Dock Favorites"
 
+# Define system apps that should always be in the dock
+SYSTEM_APPS=(
+    'google-chrome.desktop'
+    'firefox_firefox.desktop'
+    'code.desktop'
+    'slack_slack.desktop'
+    'discord_discord.desktop'
+    'spotify_spotify.desktop'
+    'obsidian_obsidian.desktop'
+    'windsurf.desktop'
+    'cursor.desktop'
+    'localsend_localsend.desktop'
+    'jetbrains-toolbox.desktop'
+    'obs-studio_obs-studio.desktop'
+    'steam_steam.desktop'
+    'org.gnome.Nautilus.desktop'
+    'org.gnome.Terminal.desktop'
+    'org.gnome.Settings.desktop'
+)
 
+# Source the web apps configuration if available
+WEBAPPS_CONFIG="$(dirname "$0")/../web2app/config.sh"
+if [ -f "$WEBAPPS_CONFIG" ]; then
+    source "$WEBAPPS_CONFIG"
+    
+    # Add web apps from config if they exist
+    for app in "${!WEB_APPS[@]}"; do
+        desktop_file="$app.desktop"
+        if [ -f "$HOME/.local/share/applications/$desktop_file" ]; then
+            SYSTEM_APPS+=("$desktop_file")
+            log_info "Adding web app to favorites: $app"
+        fi
+    done
+else
+    log_warn "Web apps configuration not found at $WEBAPPS_CONFIG"
+fi
+
+# Get current favorites to preserve any manually added apps
+CURRENT_FAVORITES=$(gsettings get org.gnome.shell favorite-apps | tr -d '[]' | tr ',' '\n' | tr -d "' " | grep -v '^$')
+
+# Merge with system apps, removing duplicates
+ALL_FAVORITES=("${SYSTEM_APPS[@]}")
+while IFS= read -r fav; do
+    # Only keep manually added favorites that aren't in our system apps
+    # and aren't web apps (we handle those above)
+    if [[ ! " ${SYSTEM_APPS[*]} " =~ " ${fav} " ]] && 
+       [[ ! "$fav" =~ ^(WhatsApp|GMail|GCal|ChatGPT|Claude|Gemini|Grok)\.desktop$ ]]; then
+        ALL_FAVORITES+=("$fav")
+        log_info "Preserving manually added favorite: $fav"
+    fi
+done <<< "$CURRENT_FAVORITES"
+
+# Convert array to gsettings format
+FAVORITES="$(printf "'%s'," "${ALL_FAVORITES[@]}" | sed 's/,$//')"
+
+# Set the favorites
+log_info "Updating dock favorites..."
+gsettings set org.gnome.shell favorite-apps "[${FAVORITES}]"
 
 # ========================= Final System Settings =========================
-echo_header "Final System Settings"
 # Set final system-wide settings
-echo "Configuring final system settings..."
+log_info "Configuring final system settings..."
 # Disable animations for better performance
 gsettings set org.gnome.desktop.interface enable-animations false
 # Show date in clock
@@ -354,9 +397,9 @@ echo_header "Configuring window behavior..."
 # Center new windows when launched
 gsettings set org.gnome.mutter center-new-windows true
 # Configure terminal shortcut
-echo "Configuring terminal shortcut..."
+log_info "Configuring terminal shortcut..."
 # Set Ctrl+Alt+T as default terminal shortcut
 gsettings set org.gnome.settings-daemon.plugins.media-keys terminal "['<Primary><Alt>t']"
 
 
-echo "Ubuntu settings configuration completed successfully!"
+log_success "Ubuntu settings configuration completed successfully!"
