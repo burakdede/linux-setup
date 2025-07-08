@@ -261,13 +261,18 @@ gsettings set org.gnome.desktop.wm.preferences auto-raise false
 # Disable audible bell (beep sound)
 gsettings set org.gnome.desktop.wm.preferences audible-bell false
 
+# ========================= Configure Keyboard Shortcuts =========================
+echo_header "Configuring keyboard shortcuts..."
+# Set Alt+Q to close window
+gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>q']"
+
 # Disable recursive search in Files (nautilus)
 gsettings set org.gnome.nautilus.preferences recursive-search 'never'
 
 # ========================= Configure overview shortcuts =========================
 echo_header "Configuring overview shortcuts..."
-# Super+s: Toggle overview
-gsettings set org.gnome.shell.keybindings toggle-overview "['<Super>s']"
+# F2: Toggle overview
+gsettings set org.gnome.shell.keybindings toggle-overview "['F2']"
 # Super+a: Toggle application view
 gsettings set org.gnome.shell.keybindings toggle-application-view "['<Super>a']"
 # Super+v: Toggle message tray
