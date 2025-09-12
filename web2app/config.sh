@@ -12,6 +12,8 @@ declare -gA WEB_APPS=(
     ["Claude"]="https://claude.ai https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/claude-ai-light.png"
     ["Gemini"]="https://gemini.google.com https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/google-gemini.png"
     ["Grok"]="https://grok.com https://images.seeklogo.com/logo-png/61/1/grok-logo-png_seeklogo-613403.png"
+    ["Linear"]="https://linear.app https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/linear-dark.png"
+    ["Notion"]="https://notion.com https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/notion-light.png"
 )
 
 # Function to get web app names as a regex pattern for matching
