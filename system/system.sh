@@ -387,6 +387,22 @@ else
     log_info "JetBrains Toolbox is already installed"
 fi
 
+# Install Claude Code
+echo_header "Installing Claude Code"
+if ! command_exists claude; then
+    log info "Installing Claaude Code..."
+
+    # Use (beta) native binary installation metohd
+    if ! curl -fsSL https://claude.ai/install.sh | bash; then
+        log_error "Failed to installa Claude Code native binary"
+        exit 1
+    fi
+
+    log_info "Claude Code installed successfully!"
+else 
+    log_info "Claude Code is already installed"
+fi
+
 
 # Install Spotify
 echo_header "Installing Spotify"
