@@ -387,22 +387,55 @@ else
     log_info "JetBrains Toolbox is already installed"
 fi
 
+# Install NVM / Node / NPM
+echo_header "Installing NVM / Node / NPM"
+if ! command_exists nvm; then
+    log_info "Installing NVM..."
+
+    if ! curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; then
+        log_error "Failed to install NVM"
+        exit 1
+    fi
+    
+    # Add bash config for NVM
+    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+    
+    # reaload runtime config after nvm addition
+    source ~/.bashrc
+
+    # lts version comes with latest stable and includes npm along with nodejs
+    nvm install --lts
+
+    log_info "NVM installed successfully!"
+else
+    log_info "NVM is already installed"
+fi
+
 # Install Claude Code
 echo_header "Installing Claude Code"
 if ! command_exists claude; then
-    log info "Installing Claaude Code..."
+    log_info "Installing Claaude Code..."
 
-    # Use (beta) native binary installation metohd
-    if ! curl -fsSL https://claude.ai/install.sh | bash; then
-        log_error "Failed to installa Claude Code native binary"
-        exit 1
-    fi
+    npm install -g @anthropic-ai/claude-code
 
     log_info "Claude Code installed successfully!"
 else 
     log_info "Claude Code is already installed"
 fi
 
+# Install OpenAI Codex
+echo_header "Installing OpenAI Codex"
+if ! command_exists codex; then
+   log_info "Installing OpenAI Codex" 
+   
+   npm install -g @openai/codex
+   
+   log_info "Codex installed successfully!"
+else
+    log_info "Codex is already installed"
+fi
 
 # Install Spotify
 echo_header "Installing Spotify"
