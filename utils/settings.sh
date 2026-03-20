@@ -1,14 +1,164 @@
 #!/usr/bin/env bash
 # Ubuntu System Settings Configuration Script
 
-# Exit on error
-set -e
+set -euo pipefail
 
 # Directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common functions
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/utils.sh"
+
+trap 'handle_error $? $LINENO' ERR
+
+array_contains() {
+    local needle="$1"
+    shift
+
+    local item
+    for item in "$@"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+
+    return 1
+}
+
+configure_gnome_extensions() {
+    # ========================= Configure GNOME Extensions =========================
+    echo_header "Setting up GNOME Extensions"
+    log_info "Installing GNOME Extension Manager and pipx..."
+    if ! sudo apt-get install -y gnome-shell-extension-manager pipx; then
+        log_warn "Failed to install GNOME extension dependencies. Skipping extension setup."
+        return 0
+    fi
+
+    log_info "Installing gnome-extensions-cli with pipx..."
+    pipx install gnome-extensions-cli --force
+    pipx ensurepath
+
+    export PATH="$PATH:$HOME/.local/bin"
+
+    gext disable tiling-assistant@ubuntu.com || true
+    gext disable ubuntu-appindicators@ubuntu.com || true
+    gext disable ubuntu-dock@ubuntu.com || true
+    gext disable ding@rastersoft.com || true
+
+    local extensions_to_install=(
+        "tactile@lundal.io"
+        "blur-my-shell@aunetx"
+        "just-perfection-desktop@just-perfection"
+        "space-bar@luchrioh"
+        "undecorate@sun.wxg@gmail.com"
+        "tophat@fflewddur.github.io"
+        "AlphabeticalAppGrid@stuarthayhurst"
+    )
+
+    echo "Disabling and cleaning up all custom extensions..."
+    local ext extension_dir schema_name schema_file schema_dir
+    for ext in "${extensions_to_install[@]}"; do
+        log_info "Processing cleanup for: $ext"
+
+        if ! gext list | grep -q "^$ext$"; then
+            log_warn "Extension not found, skipping cleanup."
+        else
+            log_info "Disabling extension..."
+            gext disable "$ext" || log_warn "Failed to disable extension (already disabled or error)."
+
+            extension_dir="$HOME/.local/share/gnome-shell/extensions/$ext"
+            if [ -d "$extension_dir" ]; then
+                log_info "Removing extension directory: $extension_dir"
+                rm -rf "$extension_dir"
+            fi
+
+            schema_name="${ext%@*}"
+            log_info "Resetting gsettings schema: org.gnome.shell.extensions.$schema_name"
+            gsettings reset-recursively "org.gnome.shell.extensions.$schema_name" || log_warn "No gsettings schema found to reset."
+
+            schema_file="/usr/share/glib-2.0/schemas/org.gnome.shell.extensions.$schema_name.gschema.xml"
+            if [ -f "$schema_file" ]; then
+                log_info "Removing system schema file: $schema_file"
+                sudo rm -f "$schema_file"
+            fi
+            log_success "Cleanup complete for: $ext"
+        fi
+        echo ""
+    done
+
+    log_info "Waiting for cleanup to complete..."
+    sleep 2
+    echo ""
+    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+    for ext in "${extensions_to_install[@]}"; do
+        log_info "Installing extension: $ext"
+
+        if ! gext install "$ext"; then
+            log_warn "Failed to install $ext"
+            continue
+        fi
+
+        sleep 2
+
+        if ! gext enable "$ext"; then
+            log_warn "Failed to enable $ext"
+            continue
+        fi
+
+        sleep 2
+        log_success "Successfully installed and enabled: $ext"
+    done
+
+    log_info "Waiting for extensions to be fully installed and loaded..."
+    sudo mkdir -p /usr/share/glib-2.0/schemas
+
+    for ext in "${extensions_to_install[@]}"; do
+        extension_dir="$HOME/.local/share/gnome-shell/extensions/$ext"
+        if [ -d "$extension_dir" ]; then
+            log_info "Processing extension $ext..."
+
+            schema_dir="$extension_dir/schemas"
+            if [ -d "$schema_dir" ]; then
+                log_info "Found schemas directory: $schema_dir"
+                (cd "$schema_dir" && glib-compile-schemas . 2>/dev/null) || true
+
+                if ls "$schema_dir"/*.gschema.xml 1> /dev/null 2>&1; then
+                    log_info "Copying schema files to system directory..."
+                    sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+                    log_success "Successfully processed schema files for $ext"
+                else
+                    log_warn "No schema files found in $schema_dir"
+                fi
+            else
+                log_info "No schemas directory found for $ext"
+                schema_name="${ext%@*}"
+                schema_file="$extension_dir/org.gnome.shell.extensions.$schema_name.gschema.xml"
+                if [ -f "$schema_file" ]; then
+                    log_info "Found schema file: $schema_file"
+                    sudo cp -v "$schema_file" /usr/share/glib-2.0/schemas/
+                else
+                    log_warn "No schema file found for $ext"
+                fi
+            fi
+        else
+            log_warn "Extension directory not found: $extension_dir"
+        fi
+    done
+
+    sudo chown -R root:root /usr/share/glib-2.0/schemas/
+    sudo chmod 644 /usr/share/glib-2.0/schemas/*
+
+    log_info "Compiling system schemas..."
+    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+    log_info "Waiting for GNOME Shell to register schemas..."
+    sleep 5
+}
+
+if ! has_desktop_session || ! command_exists gsettings; then
+    log_warn "Skipping GNOME settings because no desktop session is active."
+    exit 0
+fi
 
 # Backup existing settings
 backup_gnome_settings
@@ -36,176 +186,12 @@ gsettings set org.gnome.desktop.wm.preferences workspace-names "['[1] Browse', '
 echo "Configuring workspace switching shortcuts..."
 for i in {1..5}; do
     # Ctrl + Number: Switch to workspace
-    gsettings set org.gnome.desktop.wm.keybindings switch-to-workspace-$i "['<Control>$i']"
+    gsettings set "org.gnome.desktop.wm.keybindings" "switch-to-workspace-$i" "['<Control>$i']"
     # Ctrl + Shift + Number: Move active window to workspace
-    gsettings set org.gnome.desktop.wm.keybindings move-to-workspace-$i "['<Control><Shift>$i']"
+    gsettings set "org.gnome.desktop.wm.keybindings" "move-to-workspace-$i" "['<Control><Shift>$i']"
 done
 
-
-
-# ========================= Configure GNOME Extensions =========================
-echo_header "Setting up GNOME Extensions"
-log_info "Installing GNOME Extension Manager and pipx..."
-if ! sudo apt-get install -y gnome-shell-extension-manager pipx; then
-    log_warn "Failed to install GNOME extension dependencies. Skipping extension setup."
-    return
-fi
-
-log_info "Installing gnome-extensions-cli with pipx..."
-pipx install gnome-extensions-cli --force
-pipx ensurepath
-
-# Add gext to the current shell's PATH to ensure it's found
-export PATH="$PATH:$HOME/.local/bin"
-source ~/.bashrc
-
-# First disable all extensions
-# Default Ubuntu extensions
-gext disable tiling-assistant@ubuntu.com || true
-gext disable ubuntu-appindicators@ubuntu.com || true
-gext disable ubuntu-dock@ubuntu.com || true
-gext disable ding@rastersoft.com || true
-
-# Custom extensions
-extensions_to_install=(
-    "tactile@lundal.io"
-    "blur-my-shell@aunetx"
-    "just-perfection-desktop@just-perfection"
-    "space-bar@luchrioh"
-    "undecorate@sun.wxg@gmail.com"
-    "tophat@fflewddur.github.io"
-    "AlphabeticalAppGrid@stuarthayhurst"
-)
-
-# Disable all our custom extensions and remove their configuration
-echo "Disabling and cleaning up all custom extensions..."
-for ext in "${extensions_to_install[@]}"; do
-    log_info "Processing cleanup for: $ext"
-
-    # Check if the extension is installed before trying to clean it up
-    if ! gext list | grep -q "^$ext$"; then
-        log_warn "Extension not found, skipping cleanup."
-    else
-        # Disable extension
-        log_info "Disabling extension..."
-        gext disable "$ext" || log_warn "Failed to disable extension (already disabled or error)."
-
-        # Remove extension directory
-        extension_dir="$(eval echo ~/.local/share/gnome-shell/extensions/$ext)"
-        if [ -d "$extension_dir" ]; then
-            log_info "Removing extension directory: $extension_dir"
-            rm -rf "$extension_dir"
-        fi
-
-        # Remove any existing configuration
-        schema_name=$(echo "$ext" | sed 's/@.*//')
-        log_info "Resetting gsettings schema: org.gnome.shell.extensions.$schema_name"
-        gsettings reset-recursively "org.gnome.shell.extensions.$schema_name" || log_warn "No gsettings schema found to reset."
-
-        # Remove schema if it exists in system schemas
-        schema_file="/usr/share/glib-2.0/schemas/org.gnome.shell.extensions.$schema_name.gschema.xml"
-        if [ -f "$schema_file" ]; then
-            log_info "Removing system schema file: $schema_file"
-            sudo rm -f "$schema_file"
-        fi
-        log_success "Cleanup complete for: $ext"
-    fi
-    echo ""
-done
-
-# Wait for all cleanup operations to complete
-log_info "Waiting for cleanup to complete..."
-sleep 2
-
-echo ""
-
-# Compile schemas to ensure no stale configurations remain
-sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-
-# Install new extensions with proper error handling
-for ext in "${extensions_to_install[@]}"; do
-    log_info "Installing extension: $ext"
-    
-    # Install the extension
-    if ! gext install "$ext"; then
-        log_warn "Failed to install $ext"
-        continue
-    fi
-    
-    # Wait for installation to complete
-    sleep 2
-    
-    # Enable the extension
-    if ! gext enable "$ext"; then
-        log_warn "Failed to enable $ext"
-        continue
-    fi
-    
-    # Wait for enable to complete
-    sleep 2
-    
-    log_success "Successfully installed and enabled: $ext"
-done
-
-# Wait for extensions to be fully installed and loaded
-log_info "Waiting for extensions to be fully installed and loaded..."
-
-# Create schemas directory if it doesn't exist
-sudo mkdir -p /usr/share/glib-2.0/schemas
-
-# First, create schemas directory if it doesn't exist
-sudo mkdir -p /usr/share/glib-2.0/schemas
-
-# Process each extension's schemas
-for ext in "${extensions_to_install[@]}"; do
-    extension_dir=~/.local/share/gnome-shell/extensions/$ext
-    if [ -d "$extension_dir" ]; then
-        log_info "Processing extension $ext..."
-        
-        # First try schemas subdirectory
-        schema_dir="$extension_dir/schemas"
-        if [ -d "$schema_dir" ]; then
-            log_info "Found schemas directory: $schema_dir"
-            
-            # Compile schemas in the extension's directory first
-            (cd "$schema_dir" && glib-compile-schemas . 2>/dev/null) || true
-            
-            # Copy schema files to system schemas directory
-            if ls "$schema_dir"/*.gschema.xml 1> /dev/null 2>&1; then
-                log_info "Copying schema files to system directory..."
-                sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
-                log_success "Successfully processed schema files for $ext"
-            else
-                log_warn "No schema files found in $schema_dir"
-            fi
-        else
-            log_info "No schemas directory found for $ext"
-            
-            # As a fallback, check root of extension directory
-            schema_file="$extension_dir/org.gnome.shell.extensions.$(echo $ext | sed 's/@.*//').gschema.xml"
-            if [ -f "$schema_file" ]; then
-                log_info "Found schema file: $schema_file"
-                sudo cp -v "$schema_file" /usr/share/glib-2.0/schemas/
-            else
-                log_warn "No schema file found for $ext"
-            fi
-        fi
-    else
-        log_warn "Extension directory not found: $extension_dir"
-    fi
-done
-
-# Set proper permissions
-sudo chown -R root:root /usr/share/glib-2.0/schemas/
-sudo chmod 644 /usr/share/glib-2.0/schemas/*
-
-# Compile all system schemas
-log_info "Compiling system schemas..."
-sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-
-# Give GNOME Shell time to pick up the changes
-log_info "Waiting for GNOME Shell to register schemas..."
-sleep 5
+configure_gnome_extensions
 
 # Configure Tactile
 gsettings set org.gnome.shell.extensions.tactile col-0 1
@@ -388,14 +374,10 @@ SYSTEM_APPS=(
     'code.desktop'
     'slack_slack.desktop'
     'discord_discord.desktop'
-    'spotify_spotify.desktop'
     'obsidian_obsidian.desktop'
-    'windsurf.desktop'
-    'cursor.desktop'
     'localsend_localsend.desktop'
-    'jetbrains-toolbox.desktop'
     'obs-studio_obs-studio.desktop'
-    'steam_steam.desktop'
+    'alacritty.desktop'
     'org.gnome.Nautilus.desktop'
     'org.gnome.Terminal.desktop'
     'org.gnome.Settings.desktop'
@@ -404,6 +386,7 @@ SYSTEM_APPS=(
 # Source the web apps configuration if available
 WEBAPPS_CONFIG="$(dirname "$0")/../web2app/config.sh"
 if [ -f "$WEBAPPS_CONFIG" ]; then
+    # shellcheck source=/dev/null
     source "$WEBAPPS_CONFIG"
     
     # Add web apps from config if they exist
@@ -426,7 +409,7 @@ ALL_FAVORITES=("${SYSTEM_APPS[@]}")
 while IFS= read -r fav; do
     # Only keep manually added favorites that aren't in our system apps
     # and aren't web apps (we handle those above)
-    if [[ ! " ${SYSTEM_APPS[*]} " =~ " ${fav} " ]] && 
+    if ! array_contains "$fav" "${SYSTEM_APPS[@]}" &&
        [[ ! "$fav" =~ ^(WhatsApp|GMail|GCal|ChatGPT|Claude|Gemini|Grok)\.desktop$ ]]; then
         ALL_FAVORITES+=("$fav")
         log_info "Preserving manually added favorite: $fav"

@@ -1,542 +1,410 @@
 #!/usr/bin/env bash
-# System Package Installer Script
-# Fixed for modern Ubuntu with proper GPG key handling
+# System package and CLI bootstrap for Ubuntu.
 
-# Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
-# Directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source common functions first
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/../utils/utils.sh"
 
-# Trap errors
-trap handle_error ERR
+trap 'handle_error $? $LINENO' ERR
 
-# Using logging functions from utils.sh
+APT_PACKAGES_FILE="$SCRIPT_DIR/apt-packages.txt"
+SNAP_PACKAGES_FILE="$SCRIPT_DIR/snap-packages.txt"
+NPM_PACKAGES_FILE="$SCRIPT_DIR/npm-packages.txt"
+UV_TOOLS_FILE="$SCRIPT_DIR/uv-tools.txt"
+GITHUB_TOOLS_FILE="$SCRIPT_DIR/github-tools.txt"
+MISE_BIN="$HOME/.local/bin/mise"
 
-# Update system
-echo_header "System Updates"
-log_info "Updating system packages..."
+flag_enabled() {
+    local value="${1:-0}"
+    case "$value" in
+        1|true|TRUE|yes|YES|on|ON) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
-if ! run_with_output sudo apt-get update && run_with_output sudo apt-get upgrade -y && run_with_output sudo apt-get autoremove -y; then
-    log_warn "Some system updates may have failed"
-fi
+should_skip_step() {
+    local step_name="$1"
+    local var_name="LINUX_SETUP_SKIP_${step_name}"
+    flag_enabled "${!var_name:-0}"
+}
 
-# Install Basic Utilities
-echo_header "Install Basic Utilities"
-log_info "Installing basic utilities..."
+ensure_core_packages() {
+    sudo_run apt-get update
+    sudo_run apt-get install -y --no-install-recommends \
+        ca-certificates curl gpg jq lsb-release software-properties-common wget
+}
 
-if ! run_with_output sudo apt-get install -y --no-install-recommends xclip ubuntu-restricted-extras curl wget gpg software-properties-common; then
-    log_warn "Failed to install some basic utilities"
-fi
+upgrade_base_system() {
+    echo_header "System updates"
+    sudo_run apt-get update
+    sudo_run apt-get upgrade -y
+    sudo_run apt-get autoremove -y
+}
 
-# Install APT packages
-echo_header "Installing APT Packages"
-if [ -f "$SCRIPT_DIR/apt-packages.txt" ]; then
-    log_info "Installing packages from apt-packages.txt..."
-    
-    while IFS= read -r package; do
-        if [ -n "$package" ] && [[ ! $package =~ ^# ]]; then
-            log_info "Installing APT package: $package"
-            if ! sudo_run apt-get install -y --no-install-recommends "$package"; then
-                log_warn "Failed to install APT package $package"
-            fi
+install_apt_packages() {
+    echo_header "APT packages"
+
+    if [[ ! -f "$APT_PACKAGES_FILE" ]]; then
+        log_warn "Missing ${APT_PACKAGES_FILE}; skipping APT package installation."
+        return 0
+    fi
+
+    mapfile -t packages < <(read_list_file "$APT_PACKAGES_FILE")
+    if [[ ${#packages[@]} -eq 0 ]]; then
+        log_info "No APT packages declared."
+        return 0
+    fi
+
+    log_info "Installing ${#packages[@]} APT packages."
+    sudo_run apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+ensure_command_symlink() {
+    local expected_name="$1"
+    local source_command="$2"
+    local source_path
+
+    if command_exists "$expected_name"; then
+        return 0
+    fi
+
+    if ! source_path="$(command -v "$source_command")"; then
+        log_warn "Cannot create ${expected_name}; ${source_command} is not installed."
+        return 0
+    fi
+
+    sudo_run ln -sf "$source_path" "/usr/local/bin/$expected_name"
+}
+
+ensure_agent_command_names() {
+    echo_header "Command compatibility"
+    ensure_command_symlink fd fdfind
+    ensure_command_symlink bat batcat
+}
+
+install_snap_packages() {
+    echo_header "Snap packages"
+
+    if [[ ! -f "$SNAP_PACKAGES_FILE" ]]; then
+        log_warn "Missing ${SNAP_PACKAGES_FILE}; skipping Snap packages."
+        return 0
+    fi
+
+    local line package_name channel mode
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="$(trim "$line")"
+        [[ -z "$line" ]] && continue
+
+        package_name=""
+        channel=""
+        mode=""
+        read -r package_name channel mode <<< "$line"
+
+        if snap list "$package_name" >/dev/null 2>&1; then
+            log_info "Snap package already installed: $package_name"
+            continue
         fi
-    done < "$SCRIPT_DIR/apt-packages.txt"
-else
-    log_warn "apt-packages.txt not found, skipping APT package installation"
-fi
 
-# Install Snap packages
-echo_header "Installing Snap Packages"
-if [ -f "$SCRIPT_DIR/snap-packages.txt" ]; then
-    log_info "Installing packages from snap-packages.txt..."
-    
-    while IFS= read -r package; do
-        if [ -n "$package" ] && [[ ! $package =~ ^# ]]; then
-            log_info "Installing Snap package: $package"
-            if ! sudo_run snap install "$package" --classic 2>/dev/null; then
-                log_warn "Failed to install Snap package $package"
-            fi
+        local args=("snap" "install" "$package_name")
+        [[ -n "$channel" && "$channel" != "-" ]] && args+=("--channel=$channel")
+        [[ "$mode" == "classic" ]] && args+=("--classic")
+
+        sudo_run "${args[@]}"
+    done < "$SNAP_PACKAGES_FILE"
+}
+
+setup_vscode_repo() {
+    if command_exists code; then
+        log_info "VS Code is already installed."
+        return 0
+    fi
+
+    echo_header "VS Code"
+    sudo_run mkdir -p /etc/apt/keyrings
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/keyrings/vscode.gpg
+    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/vscode.gpg] https://packages.microsoft.com/repos/code stable main\n' | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+    sudo_run chmod 644 /etc/apt/keyrings/vscode.gpg
+    sudo_run apt-get update
+    sudo_run apt-get install -y code
+}
+
+install_vscode_extensions() {
+    local extensions_file="$SCRIPT_DIR/vscode-extensions.txt"
+
+    echo_header "VS Code extensions"
+    if ! command_exists code; then
+        log_warn "Skipping VS Code extensions; code command is unavailable."
+        return 0
+    fi
+
+    if [[ ! -f "$extensions_file" ]]; then
+        log_warn "Missing ${extensions_file}; skipping VS Code extensions."
+        return 0
+    fi
+
+    local extension
+    while IFS= read -r extension || [[ -n "$extension" ]]; do
+        extension="${extension%%#*}"
+        extension="$(trim "$extension")"
+        [[ -z "$extension" ]] && continue
+
+        if code --list-extensions | grep -Fxq "$extension"; then
+            log_info "VS Code extension already installed: $extension"
+            continue
         fi
-    done < "$SCRIPT_DIR/snap-packages.txt"
-else
-    log_warn "snap-packages.txt not found, skipping Snap package installation"
-fi
 
-# Install VS Code
-echo_header "Installing VS Code"
+        log_info "Installing VS Code extension: $extension"
+        code --install-extension "$extension" --force
+    done < "$extensions_file"
+}
 
-if ! command_exists code; then
-    log_info "Installing VS Code..."
-    
-    # Create keyrings directory if it doesn't exist
-    run_with_output sudo mkdir -p /etc/apt/keyrings
-    
-    # Clean up any existing Microsoft repository configurations
-    sudo rm -f /etc/apt/sources.list.d/vscode.list /etc/apt/sources.list.d/vscode.sources
-    
-    # Create keyrings directory if it doesn't exist
-    run_with_output sudo mkdir -p /etc/apt/keyrings
-    
-    # Download and add Microsoft GPG key (modern method)
-    if ! wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg; then
-        log_warn "Failed to download Microsoft GPG key"
-        return 1
+setup_google_chrome_repo() {
+    if command_exists google-chrome; then
+        log_info "Google Chrome is already installed."
+        return 0
     fi
-    
-    # Add VS Code repository using the trusted keyring
-    if ! echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null; then
-        log_warn "Failed to add VS Code repository"
-        return 1
-    fi
-    
-    # Set correct permissions
-    sudo chmod 644 /etc/apt/trusted.gpg.d/microsoft.gpg
-    
-    # Update and install VS Code
-    if ! run_with_output sudo apt-get update || ! run_with_output sudo apt-get install -y code; then
-        log_warn "Failed to install VS Code"
-        return 1
-    fi
-    
-    # Install VS Code extensions
-    if ! command -v code &> /dev/null; then
-        log_warn "VS Code not found after installation"
-        return 1
-    fi
-    
-    log_info "VS Code installed successfully!"
-else
-    log_info "VS Code is already installed"
-fi
 
-# Install VS Code extensions
-echo_header "Installing VS Code Extensions"
-if ! command_exists code; then
-    log_warn "VS Code is not installed. Skipping extension installation."
-else
-    if [ -f "$SCRIPT_DIR/vscode-extensions.txt" ]; then
-        log_info "Installing VS Code extensions..."
-        
-        # Create extensions directory
-        mkdir -p "$HOME/.vscode/extensions" 2>/dev/null || true
-        
-        # Read and install each extension
-        while IFS= read -r extension; do
-            # Skip empty lines and comments
-            if [ -z "$extension" ] || [[ $extension =~ ^# ]]; then
+    echo_header "Google Chrome"
+    sudo_run mkdir -p /etc/apt/keyrings
+    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg
+    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main\n' | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null
+    sudo_run chmod 644 /etc/apt/keyrings/google-chrome.gpg
+    sudo_run apt-get update
+    sudo_run apt-get install -y google-chrome-stable
+}
+
+setup_docker_repo() {
+    echo_header "Docker CLI and Compose"
+
+    if dpkg -s docker-ce-cli >/dev/null 2>&1 && dpkg -s docker-compose-plugin >/dev/null 2>&1; then
+        log_info "Docker CLI and Compose plugin are already installed."
+        return 0
+    fi
+
+    sudo_run mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo_run chmod a+r /etc/apt/keyrings/docker.gpg
+
+    local codename
+    # shellcheck source=/dev/null
+    codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' \
+        "$(dpkg --print-architecture)" "$codename" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+
+    sudo_run apt-get update
+    sudo_run apt-get install -y docker-ce-cli docker-buildx-plugin docker-compose-plugin
+}
+
+download_latest_release_asset() {
+    local repo="$1"
+    local asset_pattern="$2"
+    local metadata_file="$3"
+
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" -o "$metadata_file"
+    jq -r --arg pattern "$asset_pattern" \
+        '.assets[] | select(.name | test($pattern)) | .browser_download_url' \
+        "$metadata_file" | head -n1
+}
+
+install_github_release_tools() {
+    echo_header "GitHub release tools"
+
+    if [[ ! -f "$GITHUB_TOOLS_FILE" ]]; then
+        log_warn "Missing ${GITHUB_TOOLS_FILE}; skipping GitHub release tools."
+        return 0
+    fi
+
+    local line command_name repo asset_pattern mode binary_name
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="$(trim "$line")"
+        [[ -z "$line" ]] && continue
+
+        IFS='|' read -r command_name repo asset_pattern mode binary_name <<< "$line"
+        binary_name="${binary_name:-$command_name}"
+
+        if command_exists "$command_name"; then
+            log_info "Tool already installed: $command_name"
+            continue
+        fi
+
+        local temp_dir metadata_file download_url archive_path extracted_path
+        temp_dir="$(mktemp -d)"
+        metadata_file="$temp_dir/release.json"
+        download_url="$(download_latest_release_asset "$repo" "$asset_pattern" "$metadata_file")"
+
+        if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+            log_warn "Could not find a matching release asset for $command_name from $repo."
+            rm -rf "$temp_dir"
+            continue
+        fi
+
+        case "$mode" in
+            raw)
+                archive_path="$temp_dir/$binary_name"
+                curl -fsSL "$download_url" -o "$archive_path"
+                sudo_run install -m 0755 "$archive_path" "/usr/local/bin/$command_name"
+                ;;
+            tar.gz)
+                archive_path="$temp_dir/archive.tar.gz"
+                curl -fsSL "$download_url" -o "$archive_path"
+                tar -xzf "$archive_path" -C "$temp_dir"
+                extracted_path="$(find "$temp_dir" -type f -name "$binary_name" | head -n1)"
+                if [[ -z "$extracted_path" ]]; then
+                    log_warn "Downloaded $command_name but could not locate $binary_name in the archive."
+                    rm -rf "$temp_dir"
+                    continue
+                fi
+                sudo_run install -m 0755 "$extracted_path" "/usr/local/bin/$command_name"
+                ;;
+            *)
+                log_warn "Unsupported install mode '$mode' for $command_name."
+                rm -rf "$temp_dir"
                 continue
-            fi
-            
-            # Skip if already installed (case-insensitive)
-            if code --list-extensions | tr '[:upper:]' '[:lower:]' | grep -iq "$(echo "$extension" | tr '[:upper:]' '[:lower:]')"; then
-                log_info "Extension '$extension' is already installed."
-                continue
-            fi
-            
-            # Install extension
-            log_info "Installing extension: $extension"
-            if ! code --install-extension "$extension" --force; then
-                log_warn "Failed to install extension: $extension"
-            fi
-        done < "$SCRIPT_DIR/vscode-extensions.txt"
-    else
-        log_warn "vscode-extensions.txt not found, skipping extension installation"
-    fi
-fi
+                ;;
+        esac
 
-# Install Cursor
-echo_header "Installing Cursor"
-if ! command -v cursor &> /dev/null; then
-    log_info "Installing Cursor AppImage..."
-    
-    # Install required dependencies
-    if ! sudo apt-get install -y fuse3 libfuse2; then
-        log_warn "Failed to install required dependencies"
-        return 1
+        rm -rf "$temp_dir"
+    done < "$GITHUB_TOOLS_FILE"
+}
+
+install_uv() {
+    echo_header "uv"
+
+    if command_exists uv; then
+        log_info "uv is already installed."
+        return 0
     fi
 
-    # Download and install Cursor
-    if ! curl -L "https://www.cursor.com/api/download?platform=linux-x64&releaseTrack=stable" | \
-        jq -r '.downloadUrl' | \
-        xargs curl -L -o /tmp/cursor.appimage; then
-        log_warn "Failed to download Cursor"
-        return 1
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
+}
+
+install_uv_tools() {
+    echo_header "uv tools"
+
+    if [[ ! -f "$UV_TOOLS_FILE" ]]; then
+        log_warn "Missing ${UV_TOOLS_FILE}; skipping uv tools."
+        return 0
     fi
 
-    if ! sudo mv /tmp/cursor.appimage /opt/cursor.appimage || \
-       ! sudo chmod +x /opt/cursor.appimage || \
-       ! sudo ln -sf /opt/cursor.appimage /usr/local/bin/cursor; then
-        log_warn "Failed to install Cursor"
-        return 1
+    export PATH="$HOME/.local/bin:$PATH"
+
+    local package_name
+    while IFS= read -r package_name || [[ -n "$package_name" ]]; do
+        package_name="${package_name%%#*}"
+        package_name="$(trim "$package_name")"
+        [[ -z "$package_name" ]] && continue
+
+        log_info "Installing uv tool: $package_name"
+        uv tool install --quiet "$package_name" || uv tool upgrade "$package_name"
+    done < "$UV_TOOLS_FILE"
+}
+
+install_claude_code() {
+    echo_header "Claude Code"
+
+    if command_exists claude; then
+        log_info "Claude Code is already installed."
+        return 0
     fi
 
-    # Create desktop entry
-    DESKTOP_FILE="$HOME/.local/share/applications/cursor.desktop"
-    ICON_DIR="$HOME/.local/share/icons"
-    ICON_PATH="$ICON_DIR/cursor.png"
-    
-    # Create directories and download icon
-    if ! mkdir -p "$HOME/.local/share/applications" "$ICON_DIR"; then
-        log_warn "Failed to create necessary directories"
-        return 1
+    curl -fsSL https://claude.ai/install.sh | bash
+}
+
+install_mise() {
+    echo_header "mise"
+
+    if [[ ! -x "$MISE_BIN" ]]; then
+        curl -fsSL https://mise.run | sh
     fi
 
-    # Download icon
-    if ! curl -L "https://github.com/basecamp/omakub/blob/8d641e981766b03ac326a383e947170e1357436e/applications/icons/cursor.png?raw=true" -o "$ICON_PATH"; then
-        log_warn "Failed to download icon"
-        return 1
+    local mise_activation_line
+    # shellcheck disable=SC2016
+    mise_activation_line='eval "$("$HOME/.local/bin/mise" activate bash)"'
+    ensure_line_in_file "$mise_activation_line" "$HOME/.bashrc"
+    export PATH="$HOME/.local/bin:$PATH"
+    eval "$("$MISE_BIN" activate bash)"
+}
+
+install_node_runtime() {
+    echo_header "Node.js via mise"
+    install_mise
+    "$MISE_BIN" use --global node@lts
+}
+
+install_npm_clis() {
+    echo_header "Node-based tooling"
+
+    if [[ ! -f "$NPM_PACKAGES_FILE" ]]; then
+        log_warn "Missing ${NPM_PACKAGES_FILE}; skipping npm CLIs."
+        return 0
     fi
 
-    # Create desktop entry
-    if ! echo -e "[Desktop Entry]\nName=Cursor\nComment=AI-powered code editor\nExec=/opt/cursor.appimage --no-sandbox\nIcon=$ICON_PATH\nType=Application\nCategories=Development;IDE;\nStartupWMClass=cursor\nTerminal=false" | tee "$DESKTOP_FILE" > /dev/null; then
-        log_warn "Failed to create desktop entry"
-        return 1
+    install_node_runtime
+
+    local package_name
+    while IFS= read -r package_name || [[ -n "$package_name" ]]; do
+        package_name="${package_name%%#*}"
+        package_name="$(trim "$package_name")"
+        [[ -z "$package_name" ]] && continue
+
+        log_info "Installing npm package: $package_name"
+        "$MISE_BIN" exec node@lts -- npm install --global "$package_name"
+    done < "$NPM_PACKAGES_FILE"
+}
+
+main() {
+    check_root
+    ensure_sudo
+
+    ensure_core_packages
+    upgrade_base_system
+    install_apt_packages
+    ensure_agent_command_names
+
+    if ! should_skip_step DOCKER; then
+        setup_docker_repo
     fi
 
-    # Update desktop database
-    if ! update-desktop-database "$HOME/.local/share/applications"; then
-        log_warn "Failed to update desktop database"
-        return 1
+    if ! should_skip_step SNAPS; then
+        install_snap_packages
     fi
 
-    log_info "Cursor installed successfully!"
-
-    if command -v gsettings &> /dev/null; then
-        if ! gsettings set org.gnome.shell favorite-apps "['cursor.desktop']"; then
-            log_warn "Failed to add Cursor to dock"
-        fi
-    fi
-    
-    log_info "Successfully created desktop entry and icon for Cursor"
-    
-    # Cleanup
-    if [ -f /tmp/cursor.appimage ]; then
-        rm -f /tmp/cursor.appimage
-    fi
-    
-    log_info "Cursor installed successfully"
-else
-    log_info "Cursor is already installed"
-fi
-
-# Install Windsurf
-echo_header "Installing Windsurf"
-if ! command_exists windsurf; then
-    log_info "Setting up Windsurf repository..."
-    
-    # Create keyrings directory
-    sudo mkdir -p /etc/apt/keyrings
-    
-    # Download and add Windsurf GPG key
-    if ! wget -qO- "https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/windsurf.gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/windsurf-stable.gpg; then
-        log_warn "Failed to add Windsurf GPG key"
-        return 1
-    fi
-    
-    # Add Windsurf repository
-    if ! echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/windsurf-stable.gpg] https://windsurf-stable.codeiumdata.com/wVxQEIWkwPUEAGf3/apt stable main" | sudo tee /etc/apt/sources.list.d/windsurf.list > /dev/null; then
-        log_warn "Failed to add Windsurf repository"
-        return 1
-    fi
-    
-    # Update and install Windsurf
-    if ! sudo apt update || ! sudo apt install -y windsurf; then
-        log_warn "Failed to install Windsurf"
-        return 1
-    fi
-    
-    log_info "Windsurf installed successfully!"
-else
-    log_info "Windsurf is already installed"
-fi
-
-# Install Google Chrome
-echo_header "Installing Google Chrome"
-if ! command_exists google-chrome; then
-    log_info "Installing Google Chrome..."
-    
-    # Create keyrings directory
-    sudo mkdir -p /etc/apt/keyrings
-    
-    # Download and add Google Chrome GPG key
-    if ! wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg; then
-        log_warn "Failed to add Google Chrome GPG key"
-        return 1
+    if ! should_skip_step VSCODE; then
+        setup_vscode_repo
     fi
 
-    # Add Google Chrome repository
-    if ! echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null; then
-        log_warn "Failed to add Google Chrome repository"
-        return 1
+    if ! should_skip_step VSCODE_EXTENSIONS; then
+        install_vscode_extensions
     fi
 
-    # Update and install Google Chrome
-    if ! sudo apt update || ! sudo apt install -y google-chrome-stable; then
-        log_warn "Failed to install Google Chrome"
-        return 1
-    fi
-    
-    log_info "Google Chrome installed successfully!"
-else
-    log_info "Google Chrome is already installed"
-fi
-
-# Install JetBrains Toolbox following official guide
-# https://www.jetbrains.com/help/toolbox-app/toolbox-app-silent-installation.html
-echo_header "Installing JetBrains Toolbox"
-
-if ! command_exists jetbrains-toolbox; then
-    log_info "Setting up JetBrains Toolbox..."
-    
-    # Configuration
-    INSTALL_DIR="$HOME/.local/share/JetBrains/Toolbox"
-    DOWNLOAD_URL=$(curl -s 'https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release' | \
-        jq -r '.TBA[0].downloads.linux.link')
-    
-    if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-        log_warn "Failed to get download URL from JetBrains"
-        return 1     
+    if ! should_skip_step CHROME; then
+        setup_google_chrome_repo
     fi
 
-    # Prepare installation directory
-    if [ -d "$INSTALL_DIR" ]; then
-        log_info "Cleaning up existing installation..."
-        if ! rm -rf "$INSTALL_DIR"/*; then
-            log_warn "Failed to clean up existing installation"
-            return 1
-        fi
-    else
-        if ! mkdir -p "$INSTALL_DIR"; then
-            log_warn "Failed to create installation directory"
-            return 1
-        fi
+    if ! should_skip_step GITHUB_RELEASE_TOOLS; then
+        install_github_release_tools
     fi
 
-    # Download and extract
-    log_info "Downloading JetBrains Toolbox..."
-    if ! wget -q "$DOWNLOAD_URL" -O "$INSTALL_DIR/jetbrains-toolbox.tar.gz" || \
-       ! tar -xzf "$INSTALL_DIR/jetbrains-toolbox.tar.gz" -C "$INSTALL_DIR"; then
-        log_warn "Failed to download or extract JetBrains Toolbox"
-        return 1
+    if ! should_skip_step UV; then
+        install_uv
+        install_uv_tools
     fi
 
-    # Find extracted directory
-    EXTRACTED_DIR=$(find "$INSTALL_DIR" -name "jetbrains-toolbox-*" -type d | head -1)
-    if [ -z "$EXTRACTED_DIR" ]; then
-        log_warn "Failed to find extracted directory"
-        return 1
+    if ! should_skip_step CLAUDE; then
+        install_claude_code
     fi
 
-    # Install files
-    if ! cp -r "$EXTRACTED_DIR"/* "$INSTALL_DIR/" || \
-       ! sudo ln -sf "$INSTALL_DIR/bin/jetbrains-toolbox" "/usr/local/bin/jetbrains-toolbox"; then
-        log_warn "Failed to install JetBrains Toolbox"
-        return 1
+    if ! should_skip_step NPM_TOOLS; then
+        install_npm_clis
     fi
 
-    # Cleanup
-    if ! rm -rf "$EXTRACTED_DIR" "$INSTALL_DIR/jetbrains-toolbox.tar.gz"; then
-        log_warn "Failed to clean up installation files"
-        return 1
-    fi
+    echo_header "System bootstrap complete"
+    log_success "Base packages, agent-oriented CLIs, and runtime managers are installed."
+}
 
-    # Verify and run
-    if ! command -v jetbrains-toolbox &> /dev/null || ! jetbrains-toolbox --version &> /dev/null; then
-        log_warn "Failed to verify JetBrains Toolbox installation"
-        return 1
-    fi
-
-    jetbrains-toolbox &
-    sleep 5
-
-    # Create desktop entry
-    DESKTOP_FILE="$HOME/.local/share/applications/jetbrains-toolbox.desktop"
-    if ! mkdir -p "$HOME/.local/share/applications"; then
-        log_warn "Failed to create applications directory"
-        return 1
-    fi
-
-    if ! echo -e "[Desktop Entry]\nName=JetBrains Toolbox\nComment=JetBrains IDE Manager\nExec=$INSTALL_DIR/bin/jetbrains-toolbox\nIcon=$INSTALL_DIR/bin/toolbox.svg\nType=Application\nCategories=Development;IDE;\nTerminal=false\nStartupWMClass=jetbrains-toolbox" | tee "$DESKTOP_FILE" > /dev/null; then
-        log_warn "Failed to create desktop entry"
-        return 1
-    fi
-
-    # Update desktop database
-    if ! update-desktop-database "$HOME/.local/share/applications"; then
-        log_warn "Failed to update desktop database"
-        return 1
-    fi
-
-    # Add to dock if possible
-    if command -v gsettings &> /dev/null; then
-        if ! gsettings set org.gnome.shell favorite-apps "['jetbrains-toolbox.desktop']"; then
-            log_warn "Failed to add JetBrains Toolbox to dock"
-            return 1
-        fi
-    fi
-
-    log_info "JetBrains Toolbox installed successfully!"
-    log_info "It has been installed to $INSTALL_DIR/bin"
-    log_info "The icon should appear in your main menu automatically"
-    log_info "Please log in to your JetBrains Account to activate licenses"
-else
-    log_info "JetBrains Toolbox is already installed"
-fi
-
-# Install NVM / Node / NPM
-echo_header "Installing NVM / Node / NPM"
-if ! command_exists nvm; then
-    log_info "Installing NVM..."
-
-    if ! curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; then
-        log_error "Failed to install NVM"
-        exit 1
-    fi
-    
-    # Add bash config for NVM
-    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-    
-    # reaload runtime config after nvm addition
-    source ~/.bashrc
-
-    # lts version comes with latest stable and includes npm along with nodejs
-    nvm install --lts
-
-    log_info "NVM installed successfully!"
-else
-    log_info "NVM is already installed"
-fi
-
-# Install Claude Code
-echo_header "Installing Claude Code"
-if ! command_exists claude; then
-    log_info "Installing Claaude Code..."
-
-    npm install -g @anthropic-ai/claude-code
-
-    log_info "Claude Code installed successfully!"
-else 
-    log_info "Claude Code is already installed"
-fi
-
-# Install OpenAI Codex
-echo_header "Installing OpenAI Codex"
-if ! command_exists codex; then
-   log_info "Installing OpenAI Codex" 
-   
-   npm install -g @openai/codex
-   
-   log_info "Codex installed successfully!"
-else
-    log_info "Codex is already installed"
-fi
-
-# Install Spotify
-echo_header "Installing Spotify"
-if ! command_exists spotify; then
-    log_info "Installing Spotify..."
-    
-    # Download and add Spotify GPG key (using official method)
-    if ! curl -sS https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg | sudo gpg --dearmor --yes -o /etc/apt/trusted.gpg.d/spotify.gpg; then
-        log_error "Failed to add Spotify GPG key"
-        exit 1
-    fi
-    
-    # Add Spotify repository
-    if ! echo "deb https://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list > /dev/null; then
-        log_error "Failed to add Spotify repository"
-        exit 1
-    fi
-    
-    # Update and install Spotify
-    if ! sudo apt-get update || ! sudo apt-get install -y spotify-client; then
-        log_error "Failed to install Spotify"
-        exit 1
-    fi
-    
-    log_info "Spotify installed successfully!"
-else
-    log_info "Spotify is already installed"
-fi
-
-# Install LastPass
-echo_header "Installing LastPass"
-if ! command -v lastpass-cli &> /dev/null; then
-    log_info "Installing LastPass..."
-    
-    # Download and install LastPass CLI
-    if ! sudo apt-get install -y lastpass-cli; then
-        log_error "Failed to install LastPass CLI"
-        exit 1
-    fi
-    
-    # Create temp directory for LastPass installation
-    LASTPASS_TEMP_DIR=$(mktemp -d)
-    cd "$LASTPASS_TEMP_DIR"
-    
-    # Download and install LastPass Desktop
-    LASTPASS_URL="https://download.cloud.lastpass.com/linux/lplinux.tar.bz2"
-    LASTPASS_FILE="lplinux.tar.bz2"
-    
-    log_info "Downloading LastPass desktop package..."
-    if ! wget -q "$LASTPASS_URL" -O "$LASTPASS_FILE"; then
-        log_error "Failed to download LastPass desktop package"
-        exit 1
-    fi
-    
-    log_info "Extracting LastPass package..."
-    if ! tar xjvf "$LASTPASS_FILE"; then
-        log_error "Failed to extract LastPass package"
-        exit 1
-    fi
-    
-    log_info "Running LastPass installation script..."
-    if ! ./install_lastpass.sh; then
-        log_error "Failed to run LastPass installation script"
-        exit 1
-    fi
-    
-    # Clean up
-    rm -f "$LASTPASS_FILE"
-    rm -f install_lastpass.sh
-    cd - > /dev/null
-    rm -rf "$LASTPASS_TEMP_DIR"
-    
-    log_info "LastPass installed successfully!"
-    log_info "You can now launch LastPass from your applications menu"
-else
-    log_info "LastPass is already installed"
-fi
-
-# Verify installations
-echo_header "Verification"
-log_info "Verifying installations..."
-
-INSTALLED_APPS=()
-FAILED_APPS=()
-
-for app in code spotify google-chrome cursor windsurf jetbrains-toolbox lpass; do
-    if command_exists "$app"; then
-        INSTALLED_APPS+=("$app")
-        log_info "✓ $app is installed"
-    else
-        FAILED_APPS+=("$app")
-        log_warn "✗ $app is not installed"
-    fi
-done
-
-# Summary
-echo_header "Installation Summary"
-log_info "Successfully installed: ${#INSTALLED_APPS[@]} applications"
-if [ ${#FAILED_APPS[@]} -gt 0 ]; then
-    log_warn "Failed to install: ${FAILED_APPS[*]}"
-fi
-
-log_info "System package installation completed!"
-log_info "You may need to restart your system or log out and back in for some applications to work properly."
+main

@@ -8,6 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source common functions
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/../utils/utils.sh"
 
 # Check if git is installed
@@ -49,14 +50,14 @@ if [ -f ~/.ssh/id_ed25519 ]; then
     log_warn "SSH key already exists. Verifying..."
     
     # Verify key permissions
-        if [ $(stat -c %a ~/.ssh/id_ed25519) -ne 600 ]; then
+        if [ "$(stat -c %a ~/.ssh/id_ed25519)" -ne 600 ]; then
         log_info "Fixing SSH private key permissions"
         chmod 600 ~/.ssh/id_ed25519
     fi
     
     # Verify public key permissions
     if [ -f ~/.ssh/id_ed25519.pub ]; then
-        if [ $(stat -c %a ~/.ssh/id_ed25519.pub) -ne 644 ]; then
+        if [ "$(stat -c %a ~/.ssh/id_ed25519.pub)" -ne 644 ]; then
             log_info "Fixing SSH public key permissions"
             chmod 644 ~/.ssh/id_ed25519.pub
         fi
@@ -189,7 +190,7 @@ fi
 
 # Wait for user confirmation
 log_info ""
-read -p "After adding the SSH key to GitHub, press Enter to test the connection..."
+read -r -p "After adding the SSH key to GitHub, press Enter to test the connection..."
 
 # Test SSH connection with improved error handling
 echo_header "Testing SSH Connection to GitHub"

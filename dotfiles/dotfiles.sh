@@ -1,58 +1,61 @@
 #!/usr/bin/env bash
-# Dotfiles installation script
+# Dotfiles installation script.
 
-# Exit on error
-set -e
+set -euo pipefail
 
-# Directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source common functions
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/../utils/utils.sh"
 
-# Copy and source dotfiles
-echo_header "Installing and Sourcing Dotfiles"
+trap 'handle_error $? $LINENO' ERR
 
-# The dotfiles are in the same directory as the script
-DOTFILES_DIR="$SCRIPT_DIR"
+BACKUP_ROOT="$HOME/.local/state/linux-setup/dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
 
-# Enable dotglob to match hidden files (dotfiles)
-shopt -s dotglob
+backup_target() {
+    local target="$1"
+    local relative="${target#"$HOME"/}"
+    local backup_path="$BACKUP_ROOT/$relative"
 
-# Check if dotfiles directory has any files
-if [ -z "$(ls -A "$DOTFILES_DIR"/ 2>/dev/null)" ]; then
-    log_info "dotfiles directory is empty"
-    shopt -u dotglob  # Reset dotglob
-    exit 0
-fi
-
-for file in "$DOTFILES_DIR"/*; do
-    # Skip if no files match (in case of empty directory)
-    [ -e "$file" ] || continue
-    
-        filename="$(basename "$file")"
-
-    # Skip the script itself
-    if [ "$filename" == "dotfiles.sh" ]; then
-        continue
+    if [[ ! -e "$target" && ! -L "$target" ]]; then
+        return 0
     fi
 
-    log_info "Copying $filename to $HOME/"
-    cp -f "$file" "$HOME/$filename"
-    
-    # Source the file if it's a shell configuration file
-    case "$filename" in
-        .bashrc|.bash_profile|.zshrc|.profile|.pam_environment|.bash_aliases|.inputrc)
-            log_info "Sourcing $filename"
-            source "$HOME/$filename"
-            ;;
-        *)
-            log_info "Skipping sourcing for $filename (not a shell config file)"
-            ;;
-    esac
-done
+    mkdir -p "$(dirname "$backup_path")"
+    cp -a "$target" "$backup_path"
+}
 
-# Reset dotglob to its original state
-shopt -u dotglob
+install_path() {
+    local source_path="$1"
+    local name
+    name="$(basename "$source_path")"
+    local target_path="$HOME/$name"
 
-log_info "Dotfiles installation completed!"
+    backup_target "$target_path"
+    mkdir -p "$(dirname "$target_path")"
+
+    if [[ -d "$source_path" ]]; then
+        rm -rf "$target_path"
+        cp -a "$source_path" "$target_path"
+    else
+        cp -a "$source_path" "$target_path"
+    fi
+
+    log_success "Installed ${name}"
+}
+
+main() {
+    echo_header "Dotfiles"
+    mkdir -p "$BACKUP_ROOT"
+
+    shopt -s dotglob nullglob
+    local path
+    for path in "$SCRIPT_DIR"/*; do
+        [[ "$(basename "$path")" == "dotfiles.sh" ]] && continue
+        install_path "$path"
+    done
+    shopt -u dotglob nullglob
+
+    log_info "Backups stored in $BACKUP_ROOT"
+}
+
+main

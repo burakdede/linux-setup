@@ -1,28 +1,16 @@
-# Ubuntu-specific development tools
-# Add Snap packages here
+# Format:
+# package [channel|-] [classic]
 
-# Development IDEs
-
-# Development utilities
-docker
-
-
-# Communication tools
-zoom-client
-discord
-slack
-
-# Entertainment
-steam
-vlc
-
-# Productivity tools
-obs-studio
+# Collaboration and productivity
+discord - classic
 obsidian
 localsend
-
-# Additional development tools
 postman
-insomnia
-gnome-boxes
+zoom-client
 
+# Development tools
+insomnia
+slack - classic
+
+# Media
+obs-studio

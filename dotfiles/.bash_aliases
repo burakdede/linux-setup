@@ -1,4 +1,9 @@
+# shellcheck shell=bash
 # .bash_aliases - Personal bash functions and aliases
+
+if [[ -x "$HOME/.local/bin/mise" ]]; then
+    eval "$("$HOME/.local/bin/mise" activate bash)"
+fi
 
 # Web2App - Turn WebApp to Desktop App
 # Create a desktop launcher for a web app
@@ -21,6 +26,17 @@ web2app() {
     local BROWSER="${4:-$DEFAULT_BROWSER}"
     local WIDTH="${5:-$DEFAULT_WIDTH}"
     local HEIGHT="${6:-$DEFAULT_HEIGHT}"
+
+    if ! command -v "$BROWSER" >/dev/null 2>&1; then
+        if command -v chromium >/dev/null 2>&1; then
+            BROWSER="chromium"
+        elif command -v microsoft-edge >/dev/null 2>&1; then
+            BROWSER="microsoft-edge"
+        else
+            echo "Error: No supported browser command found for web app launcher creation"
+            return 1
+        fi
+    fi
 
     # Validate inputs
     if ! [[ "$APP_URL" =~ ^https?:// ]]; then
@@ -75,11 +91,13 @@ EOF
     chmod +x "$DESKTOP_FILE" || { echo "Error: Failed to make desktop file executable"; return 1; }
     
     # Add to dock favorites
-    local DESKTOP_ID=$(basename "$DESKTOP_FILE")
+    local DESKTOP_ID
+    DESKTOP_ID="$(basename "$DESKTOP_FILE")"
     echo "Adding $APP_NAME to dock favorites..."
     
     # Get current favorites
-    local CURRENT_FAVORITES=$(gsettings get org.gnome.shell favorite-apps)
+    local CURRENT_FAVORITES
+    CURRENT_FAVORITES="$(gsettings get org.gnome.shell favorite-apps)"
     
     # Add new app to favorites if not already present
     if ! echo "$CURRENT_FAVORITES" | grep -q "\"$DESKTOP_ID\""; then
@@ -135,7 +153,8 @@ web2app-remove() {
 # Example: app2folder "Spotify.desktop" "Xtra"
 app2folder() {
     if [ "$#" -ne 2 ]; then
-        local FOLDERS=$(gsettings get org.gnome.desktop.app-folders folder-children | tr -d "[',]")
+        local FOLDERS
+        FOLDERS="$(gsettings get org.gnome.desktop.app-folders folder-children | tr -d "[]',")"
         echo "Usage: app2folder <desktop_file.desktop> <folder_name>"
         echo "Available folders: $FOLDERS"
         echo "Note: Don't use full path for the .desktop file"
@@ -147,8 +166,9 @@ app2folder() {
     local SCHEMA="org.gnome.desktop.app-folders.folder:/org/gnome/desktop/app-folders/folders/$FOLDER/"
     
     # Validate folder exists
-    local FOLDERS=$(gsettings get org.gnome.desktop.app-folders folder-children | tr -d "[',]")
-    if [[ ! " $FOLDERS " =~ " $FOLDER " ]]; then
+    local FOLDERS
+    FOLDERS="$(gsettings get org.gnome.desktop.app-folders folder-children | tr -d "[]',")"
+    if [[ ! " $FOLDERS " =~  $FOLDER  ]]; then
         echo "Error: Folder '$FOLDER' does not exist. Available folders: $FOLDERS"
         return 1
     fi
@@ -159,10 +179,12 @@ app2folder() {
         return 1
     fi
 
-    local CURRENT_APPS=$(gsettings get "$SCHEMA" apps)
+    local CURRENT_APPS
+    CURRENT_APPS="$(gsettings get "$SCHEMA" apps)"
     
     if [[ "$CURRENT_APPS" != *"$DESKTOP_FILE"* ]]; then
-        local TRIMMED=$(echo "$CURRENT_APPS" | sed "s/^\[//;s/\]$//")
+        local TRIMMED
+        TRIMMED="$(echo "$CURRENT_APPS" | sed "s/^\[//;s/\]$//")"
         gsettings set "$SCHEMA" apps "[$TRIMMED, '$DESKTOP_FILE']" || {
             echo "Error: Failed to add app to folder"
             return 1
