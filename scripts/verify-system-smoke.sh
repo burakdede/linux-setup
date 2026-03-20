@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+
 flag_enabled() {
     local value="${1:-0}"
     case "$value" in
