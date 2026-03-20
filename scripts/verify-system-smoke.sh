@@ -28,7 +28,7 @@ base_commands=(
     yq
     eza
     sd
-    tokei
+    scc
     uv
     mise
     claude

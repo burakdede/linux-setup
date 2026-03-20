@@ -7,7 +7,7 @@ The default path installs:
 - command compatibility symlinks for `fd` and `bat`
 - VS Code and Google Chrome from their official repositories
 - Docker CLI and Compose plugin from Docker's official repository
-- GitHub-release binaries for `yq`, `eza`, `sd`, and `tokei`
+- GitHub-release binaries for `yq`, `eza`, `sd`, and `scc`
 - `uv` tools such as Aider, Ruff, and Yamllint
 - `mise` as the runtime manager, with Node LTS for Node-based CLIs
 - terminal coding agents such as Codex, Claude Code, Gemini CLI, plus `eslint` and `prettier`
@@ -39,7 +39,7 @@ Interactive or highly personal steps are opt-in:
 This repo now treats the following categories as the base layer for coding agents:
 - search and navigation: `rg`, `fd`, `tree`, `fzf`, `eza`
 - file inspection and structured parsing: `bat`, `jq`, `yq`
-- safer text transforms and repo understanding: `sd`, `tokei`
+- safer text transforms and repo understanding: `sd`, `scc`
 - quality gates: `shellcheck`, `ruff`, `yamllint`, `eslint`, `prettier`
 - agent CLIs: `codex`, `claude`, `gemini`, `aider`
 - runtime management: `mise` instead of `nvm`

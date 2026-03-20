@@ -2,4 +2,4 @@
 yq|mikefarah/yq|^yq_linux_amd64$|raw|yq
 eza|eza-community/eza|^eza_x86_64-unknown-linux-gnu\.tar\.gz$|tar.gz|eza
 sd|chmln/sd|^sd-.*x86_64-unknown-linux.*\.tar\.gz$|tar.gz|sd
-tokei|XAMPPRocky/tokei|^tokei-.*x86_64-unknown-linux.*\.tar\.gz$|tar.gz|tokei
+scc|boyter/scc|^scc_Linux_x86_64\.tar\.gz$|tar.gz|scc

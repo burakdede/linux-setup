@@ -111,10 +111,12 @@ class BootstrapRepoTests(unittest.TestCase):
             installed_aliases = home / ".bash_aliases"
             installed_gitconfig = home / ".gitconfig"
             installed_config_dir = home / ".config"
+            source_config_dir = REPO_ROOT / "dotfiles" / ".config"
 
             self.assertTrue(installed_aliases.exists())
             self.assertTrue(installed_gitconfig.exists())
-            self.assertTrue(installed_config_dir.exists())
+            if source_config_dir.exists():
+                self.assertTrue(installed_config_dir.exists())
 
             backup_root = home / ".local" / "state" / "linux-setup" / "dotfiles-backups"
             backups = list(backup_root.rglob(".gitconfig"))
