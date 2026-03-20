@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -22,15 +23,37 @@ class BootstrapRepoTests(unittest.TestCase):
             check=False,
         )
 
+    def create_sourceable_system_script(self, directory: Path) -> Path:
+        original = (REPO_ROOT / "system" / "system.sh").read_text(encoding="utf-8")
+        lines = original.splitlines()
+        filtered_lines = []
+        for line in lines:
+            if line.strip() == 'source "$SCRIPT_DIR/../utils/utils.sh"':
+                continue
+            if line.strip() == "main":
+                continue
+            filtered_lines.append(line)
+
+        script_path = directory / "system-sourceable.sh"
+        script_path.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
+        return script_path
+
     def test_shell_syntax_is_valid(self):
         scripts = [
+            ".githooks/pre-commit",
+            ".githooks/pre-push",
             "run.sh",
+            "scripts/install-hooks.sh",
+            "scripts/smoke-system.sh",
             "system/system.sh",
             "sdk/sdk.sh",
             "git/git.sh",
             "dotfiles/dotfiles.sh",
             "utils/utils.sh",
             "utils/settings.sh",
+            "scripts/test.sh",
+            "scripts/verify-system-smoke.sh",
+            "scripts/vm-smoke-test.sh",
             "web2app/web2app.sh",
         ]
         result = self.run_cmd(["bash", "-n", *scripts])
@@ -38,13 +61,20 @@ class BootstrapRepoTests(unittest.TestCase):
 
     def test_shellcheck_passes(self):
         files = [
+            ".githooks/pre-commit",
+            ".githooks/pre-push",
             "run.sh",
+            "scripts/install-hooks.sh",
+            "scripts/smoke-system.sh",
             "system/system.sh",
             "sdk/sdk.sh",
             "git/git.sh",
             "dotfiles/dotfiles.sh",
             "utils/utils.sh",
             "utils/settings.sh",
+            "scripts/test.sh",
+            "scripts/verify-system-smoke.sh",
+            "scripts/vm-smoke-test.sh",
             "web2app/web2app.sh",
             "dotfiles/.bash_aliases",
         ]
@@ -176,6 +206,188 @@ class BootstrapRepoTests(unittest.TestCase):
             result = self.run_cmd(["bash", "-lc", command])
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.splitlines(), ["rg", "fd-find", "jq"])
+
+    def test_manifests_are_well_formed(self):
+        simple_manifests = [
+            REPO_ROOT / "system" / "apt-packages.txt",
+            REPO_ROOT / "system" / "npm-packages.txt",
+            REPO_ROOT / "system" / "uv-tools.txt",
+        ]
+        for manifest in simple_manifests:
+            seen = set()
+            for raw_line in manifest.read_text(encoding="utf-8").splitlines():
+                line = raw_line.split("#", 1)[0].strip()
+                if not line:
+                    continue
+                self.assertNotIn(line, seen, f"Duplicate entry {line!r} in {manifest}")
+                seen.add(line)
+
+        snap_seen = set()
+        for raw_line in (REPO_ROOT / "system" / "snap-packages.txt").read_text(encoding="utf-8").splitlines():
+            line = raw_line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            parts = line.split()
+            self.assertGreaterEqual(len(parts), 1)
+            self.assertLessEqual(len(parts), 3)
+            self.assertNotIn(line, snap_seen)
+            snap_seen.add(line)
+            if len(parts) >= 2:
+                self.assertTrue(parts[1] == "-" or re.fullmatch(r"[A-Za-z0-9./_-]+", parts[1]))
+            if len(parts) == 3:
+                self.assertEqual(parts[2], "classic")
+
+        github_seen = set()
+        valid_modes = {"raw", "tar.gz"}
+        for raw_line in (REPO_ROOT / "system" / "github-tools.txt").read_text(encoding="utf-8").splitlines():
+            line = raw_line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            parts = line.split("|")
+            self.assertEqual(len(parts), 5, f"Expected 5 columns in github-tools.txt, got {line!r}")
+            command_name, repo, asset_pattern, mode, binary_name = parts
+            self.assertTrue(command_name)
+            self.assertRegex(repo, r"^[^/]+/[^/]+$")
+            self.assertTrue(asset_pattern)
+            self.assertIn(mode, valid_modes)
+            self.assertTrue(binary_name)
+            self.assertNotIn(command_name, github_seen)
+            github_seen.add(command_name)
+
+    def test_system_installer_uses_expected_apt_command(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            log_file = Path(tmp_dir) / "log.txt"
+            manifest = Path(tmp_dir) / "apt.txt"
+            sourceable_script = self.create_sourceable_system_script(tmp_path)
+            manifest.write_text("rg\nfd-find\njq\n", encoding="utf-8")
+
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                sudo_run() {{ printf 'sudo:%s\\n' "$*" >> "{log_file}"; }}
+                log_info() {{ :; }}
+                log_warn() {{ :; }}
+                log_success() {{ :; }}
+                echo_header() {{ :; }}
+                source "{sourceable_script}"
+                APT_PACKAGES_FILE="{manifest}"
+                install_apt_packages
+                """
+            )
+
+            result = self.run_cmd(["bash", "-lc", command])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            log_output = log_file.read_text(encoding="utf-8")
+            self.assertIn("sudo:apt-get install -y --no-install-recommends rg fd-find jq", log_output)
+
+    def test_system_installer_parses_snap_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            log_file = Path(tmp_dir) / "log.txt"
+            manifest = Path(tmp_dir) / "snaps.txt"
+            sourceable_script = self.create_sourceable_system_script(tmp_path)
+            manifest.write_text(
+                "discord - classic\npostman latest/stable\nlocalsend\n",
+                encoding="utf-8",
+            )
+
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                sudo_run() {{ printf 'sudo:%s\\n' "$*" >> "{log_file}"; }}
+                log_info() {{ :; }}
+                log_warn() {{ :; }}
+                log_success() {{ :; }}
+                echo_header() {{ :; }}
+                snap() {{ return 1; }}
+                source "{sourceable_script}"
+                SNAP_PACKAGES_FILE="{manifest}"
+                install_snap_packages
+                """
+            )
+
+            result = self.run_cmd(["bash", "-lc", command])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            lines = log_file.read_text(encoding="utf-8").splitlines()
+            self.assertIn("sudo:snap install discord --classic", lines)
+            self.assertIn("sudo:snap install postman --channel=latest/stable", lines)
+            self.assertIn("sudo:snap install localsend", lines)
+
+    def test_ensure_line_in_file_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            target = tmp_path / ".bashrc"
+            line = 'eval "$("$HOME/.local/bin/mise" activate bash)"'
+
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                ensure_line_in_file '{line}' "{target}"
+                ensure_line_in_file '{line}' "{target}"
+                """
+            )
+
+            result = self.run_cmd(["bash", "-lc", command])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            bashrc = target.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(bashrc.count(line), 1)
+
+    def test_system_main_respects_skip_flags(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            log_file = Path(tmp_dir) / "log.txt"
+            sourceable_script = self.create_sourceable_system_script(tmp_path)
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                source "{sourceable_script}"
+                check_root() {{ :; }}
+                ensure_sudo() {{ :; }}
+                ensure_core_packages() {{ printf 'core\\n' >> "{log_file}"; }}
+                upgrade_base_system() {{ printf 'upgrade\\n' >> "{log_file}"; }}
+                install_apt_packages() {{ printf 'apt\\n' >> "{log_file}"; }}
+                ensure_agent_command_names() {{ printf 'compat\\n' >> "{log_file}"; }}
+                setup_docker_repo() {{ printf 'docker\\n' >> "{log_file}"; }}
+                install_snap_packages() {{ printf 'snaps\\n' >> "{log_file}"; }}
+                setup_vscode_repo() {{ printf 'vscode\\n' >> "{log_file}"; }}
+                install_vscode_extensions() {{ printf 'vscode-ext\\n' >> "{log_file}"; }}
+                setup_google_chrome_repo() {{ printf 'chrome\\n' >> "{log_file}"; }}
+                install_github_release_tools() {{ printf 'gh-tools\\n' >> "{log_file}"; }}
+                install_uv() {{ printf 'uv\\n' >> "{log_file}"; }}
+                install_uv_tools() {{ printf 'uv-tools\\n' >> "{log_file}"; }}
+                install_claude_code() {{ printf 'claude\\n' >> "{log_file}"; }}
+                install_npm_clis() {{ printf 'npm\\n' >> "{log_file}"; }}
+                echo_header() {{ :; }}
+                log_success() {{ :; }}
+                export LINUX_SETUP_SKIP_SNAPS=1
+                export LINUX_SETUP_SKIP_VSCODE=1
+                export LINUX_SETUP_SKIP_CHROME=1
+                main
+                """
+            )
+
+            result = self.run_cmd(["bash", "-lc", command])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            output = log_file.read_text(encoding="utf-8").splitlines()
+            self.assertIn("core", output)
+            self.assertIn("apt", output)
+            self.assertIn("docker", output)
+            self.assertNotIn("snaps", output)
+            self.assertNotIn("vscode", output)
+            self.assertNotIn("chrome", output)
+
+    def test_dotfiles_script_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as temp_home:
+            env = os.environ.copy()
+            env["HOME"] = temp_home
+
+            first = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+            second = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertTrue((Path(temp_home) / ".bash_aliases").exists())
 
 
 if __name__ == "__main__":

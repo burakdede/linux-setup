@@ -16,6 +16,20 @@ UV_TOOLS_FILE="$SCRIPT_DIR/uv-tools.txt"
 GITHUB_TOOLS_FILE="$SCRIPT_DIR/github-tools.txt"
 MISE_BIN="$HOME/.local/bin/mise"
 
+flag_enabled() {
+    local value="${1:-0}"
+    case "$value" in
+        1|true|TRUE|yes|YES|on|ON) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+should_skip_step() {
+    local step_name="$1"
+    local var_name="LINUX_SETUP_SKIP_${step_name}"
+    flag_enabled "${!var_name:-0}"
+}
+
 ensure_core_packages() {
     sudo_run apt-get update
     sudo_run apt-get install -y --no-install-recommends \
@@ -351,16 +365,43 @@ main() {
     upgrade_base_system
     install_apt_packages
     ensure_agent_command_names
-    setup_docker_repo
-    install_snap_packages
-    setup_vscode_repo
-    install_vscode_extensions
-    setup_google_chrome_repo
-    install_github_release_tools
-    install_uv
-    install_uv_tools
-    install_claude_code
-    install_npm_clis
+
+    if ! should_skip_step DOCKER; then
+        setup_docker_repo
+    fi
+
+    if ! should_skip_step SNAPS; then
+        install_snap_packages
+    fi
+
+    if ! should_skip_step VSCODE; then
+        setup_vscode_repo
+    fi
+
+    if ! should_skip_step VSCODE_EXTENSIONS; then
+        install_vscode_extensions
+    fi
+
+    if ! should_skip_step CHROME; then
+        setup_google_chrome_repo
+    fi
+
+    if ! should_skip_step GITHUB_RELEASE_TOOLS; then
+        install_github_release_tools
+    fi
+
+    if ! should_skip_step UV; then
+        install_uv
+        install_uv_tools
+    fi
+
+    if ! should_skip_step CLAUDE; then
+        install_claude_code
+    fi
+
+    if ! should_skip_step NPM_TOOLS; then
+        install_npm_clis
+    fi
 
     echo_header "System bootstrap complete"
     log_success "Base packages, agent-oriented CLIs, and runtime managers are installed."

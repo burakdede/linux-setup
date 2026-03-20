@@ -87,6 +87,21 @@ After that:
 
 The shared gate lives in [scripts/test.sh](/home/burak/Projects/linux-setup/scripts/test.sh).
 
+For a disposable Ubuntu smoke test of the real installer, use:
+
+```bash
+bash scripts/vm-smoke-test.sh
+```
+
+That launches a temporary Multipass VM, copies the repo into it, runs the fast checks, then runs a real `system` bootstrap smoke test inside the guest.
+
+Useful variants:
+
+```bash
+bash scripts/vm-smoke-test.sh --keep
+bash scripts/vm-smoke-test.sh --full
+```
+
 ## Notes
 
 - Run the repo as a normal user with `sudo` access.
