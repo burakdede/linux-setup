@@ -72,6 +72,21 @@ Include optional modules:
 ./run.sh --include-git --include-settings
 ```
 
+## Local And PR Gates
+
+Install the repository-managed git hooks once:
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+After that:
+- `pre-commit` runs `bash scripts/test.sh`
+- `pre-push` runs `bash scripts/test.sh`
+- GitHub Actions runs the same check on pushes and pull requests
+
+The shared gate lives in [scripts/test.sh](/home/burak/Projects/linux-setup/scripts/test.sh).
+
 ## Notes
 
 - Run the repo as a normal user with `sudo` access.
