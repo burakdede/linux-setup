@@ -20,7 +20,11 @@ load_sdkman() {
     fi
 
     log_info "Installing SDKMAN."
-    curl -s "https://get.sdkman.io" | bash
+    local tmp_installer
+    tmp_installer="$(mktemp)"
+    curl -fsSL "https://get.sdkman.io" -o "$tmp_installer"
+    bash "$tmp_installer"
+    rm -f "$tmp_installer"
     # shellcheck source=/dev/null
     source "$SDKMAN_INIT"
 }

@@ -6,41 +6,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "==> bash -n"
-bash -n \
-  .githooks/pre-commit \
-  .githooks/pre-push \
-  run.sh \
-  scripts/install-hooks.sh \
-  scripts/smoke-system.sh \
-  scripts/test.sh \
-  scripts/verify-system-smoke.sh \
-  scripts/vm-smoke-test.sh \
-  system/system.sh \
-  sdk/sdk.sh \
-  agents/agents.sh \
-  git/git.sh \
-  dotfiles/dotfiles.sh \
-  utils/utils.sh \
-  utils/settings.sh
+mapfile -t shell_scripts < <(
+    git -C "$ROOT_DIR" ls-files '*.sh' '.githooks/pre-commit' '.githooks/pre-push'
+)
+bash -n "${shell_scripts[@]}"
 
 echo "==> shellcheck"
-shellcheck \
-  .githooks/pre-commit \
-  .githooks/pre-push \
-  run.sh \
-  scripts/install-hooks.sh \
-  scripts/smoke-system.sh \
-  scripts/test.sh \
-  scripts/verify-system-smoke.sh \
-  scripts/vm-smoke-test.sh \
-  system/system.sh \
-  sdk/sdk.sh \
-  agents/agents.sh \
-  git/git.sh \
-  dotfiles/dotfiles.sh \
-  utils/utils.sh \
-  utils/settings.sh \
-  dotfiles/.bash_aliases
+mapfile -t shellcheck_scripts < <(
+    git -C "$ROOT_DIR" ls-files '*.sh' '*.bash' '.githooks/pre-commit' '.githooks/pre-push' 'dotfiles/.bash_aliases'
+)
+shellcheck "${shellcheck_scripts[@]}"
 
 echo "==> unittest"
 python3 -m unittest discover -s tests -p 'test_*.py' -v

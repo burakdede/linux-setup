@@ -164,9 +164,25 @@ download_latest_release_asset() {
     local metadata_file="$3"
 
     curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" -o "$metadata_file"
-    jq -r --arg pattern "$asset_pattern" \
+
+    # Detect GitHub API error responses (rate limit, not found, etc.)
+    if jq -e '.message' "$metadata_file" &>/dev/null; then
+        log_warn "GitHub API error for ${repo}: $(jq -r '.message' "$metadata_file")"
+        echo ""
+        return 0
+    fi
+
+    local url
+    url="$(jq -r --arg pattern "$asset_pattern" \
         '.assets[] | select(.name | test($pattern)) | .browser_download_url' \
-        "$metadata_file" | head -n1
+        "$metadata_file" | head -n1)"
+
+    # jq emits "null" string when a field exists but is null; treat it as empty
+    if [[ "$url" == "null" ]]; then
+        echo ""
+    else
+        echo "$url"
+    fi
 }
 
 install_github_release_tools() {
@@ -193,6 +209,8 @@ install_github_release_tools() {
 
         local temp_dir metadata_file download_url archive_path extracted_path
         temp_dir="$(mktemp -d)"
+        # shellcheck disable=SC2064
+        trap "rm -rf '$temp_dir'" RETURN
         metadata_file="$temp_dir/release.json"
         download_url="$(download_latest_release_asset "$repo" "$asset_pattern" "$metadata_file")"
 
@@ -240,7 +258,6 @@ install_uv() {
     fi
 
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
 }
 
 install_uv_tools() {
@@ -250,8 +267,6 @@ install_uv_tools() {
         log_warn "Missing ${UV_TOOLS_FILE}; skipping uv tools."
         return 0
     fi
-
-    export PATH="$HOME/.local/bin:$PATH"
 
     local package_name
     while IFS= read -r package_name || [[ -n "$package_name" ]]; do
@@ -358,6 +373,10 @@ install_npm_clis() {
 main() {
     check_root
     ensure_sudo
+
+    # Ensure user-local bin is on PATH for uv, mise, and other tools installed
+    # into ~/.local/bin. Export once here rather than in individual functions.
+    export PATH="$HOME/.local/bin:$PATH"
 
     ensure_core_packages
     upgrade_base_system

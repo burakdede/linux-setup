@@ -7,10 +7,14 @@ on:
       - main
       - feat/**
   pull_request:
+  schedule:
+    # Weekly full test every Monday at 06:00 UTC — catches upstream breakage
+    # (snap removals, GitHub release asset renames, npm package changes, etc.)
+    - cron: '0 6 * * 1'
 
 jobs:
   bootstrap-checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -19,30 +23,35 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck
+          sudo apt-get install -y shellcheck python3
 
       - name: Run bootstrap checks
         run: bash scripts/test.sh
 
   system-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run system smoke test in Ubuntu container
-        run: |
-          docker run --rm \
-            -v "$PWD:/src" \
-            ubuntu:24.04 \
-            bash -lc '
-              set -euo pipefail
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y sudo git curl wget ca-certificates gnupg jq lsb-release python3 python3-venv tar gzip bzip2 xz-utils unzip file
-              useradd -m -s /bin/bash runner
-              echo "runner ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/runner
-              cp -a /src /home/runner/linux-setup
-              chown -R runner:runner /home/runner/linux-setup
-              su - runner -c "cd /home/runner/linux-setup && bash scripts/smoke-system.sh"
-            '
+      # Run the full system step on a real Ubuntu 24.04 VM.
+      # Snaps are skipped — snapd requires systemd which GitHub runners don't provide.
+      # UFW is skipped — enabling it would block the runner's own network access.
+      # Everything else (apt, GitHub tools, uv, mise, npm, Docker, Chrome, runtimes) runs for real.
+      - name: System bootstrap
+        env:
+          LINUX_SETUP_SMOKE_FULL: "1"
+          LINUX_SETUP_SKIP_SNAPS: "1"
+          LINUX_SETUP_SKIP_UFW: "1"
+          DEBIAN_FRONTEND: noninteractive
+        run: bash scripts/smoke-system.sh
+
+      - name: Verify installed commands
+        run: bash scripts/verify-system-smoke.sh
+
+      - name: Dotfiles bootstrap
+        run: bash run.sh --only dotfiles
+
+      - name: Agents bootstrap
+        run: bash run.sh --only agents

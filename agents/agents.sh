@@ -24,14 +24,22 @@ _add_mcp_to_file() {
 
     mkdir -p "$(dirname "$target")"
 
+    local tmp
+    tmp="$(mktemp)"
     if [[ -f "$target" ]]; then
-        local updated
-        updated="$(jq --arg n "$name" --argjson c "$config" \
-            "${key_path}"'[$n] = $c' "$target")"
-        echo "$updated" > "$target"
+        jq --arg n "$name" --argjson c "$config" \
+            "${key_path}"'[$n] = $c' "$target" > "$tmp"
     else
         jq -n --arg n "$name" --argjson c "$config" \
-            "{mcpServers: {(\$n): \$c}}" > "$target"
+            "{mcpServers: {(\$n): \$c}}" > "$tmp"
+    fi
+    # Only replace the real file if jq produced valid JSON
+    if jq empty "$tmp" 2>/dev/null; then
+        mv "$tmp" "$target"
+    else
+        rm -f "$tmp"
+        log_warn "jq produced invalid JSON for MCP '$name' — $target not modified"
+        return 1
     fi
 }
 

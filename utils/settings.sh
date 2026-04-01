@@ -81,7 +81,7 @@ configure_gnome_extensions() {
     )
 
     echo "Disabling and cleaning up all custom extensions..."
-    local ext extension_dir schema_name schema_file schema_dir
+    local ext extension_dir schema_name
     for ext in "${extensions_to_install[@]}"; do
         log_info "Processing cleanup for: $ext"
 
