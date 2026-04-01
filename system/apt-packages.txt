@@ -1,6 +1,3 @@
-# Password manager (bootstrap dependency — install first)
-lastpass-cli
-
 # Tier 1 agent tooling
 bat
 bzip2

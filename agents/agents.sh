@@ -89,11 +89,7 @@ configure_mcps() {
 
     # ── Token-gated MCPs ────────────────────────────────────────────────────
 
-    # Try to pull Linear API key from LastPass if logged in
     local linear_key=""
-    if command_exists lpass; then
-        linear_key="$(lpass show --password "Linear API Key" 2>/dev/null || true)"
-    fi
 
     local linear_config
     linear_config="$(jq -n \
@@ -109,9 +105,6 @@ configure_mcps() {
 
     # Notion — get key from: https://www.notion.so/profile/integrations
     local notion_key=""
-    if command_exists lpass; then
-        notion_key="$(lpass show --password "Notion API Key" 2>/dev/null || true)"
-    fi
 
     local notion_config
     notion_config="$(jq -n \
@@ -127,9 +120,6 @@ configure_mcps() {
 
     # Miro — get key from: https://miro.com/app/settings/user-profile/apps
     local miro_key=""
-    if command_exists lpass; then
-        miro_key="$(lpass show --password "Miro API Key" 2>/dev/null || true)"
-    fi
 
     local miro_config
     miro_config="$(jq -n \

@@ -3,7 +3,6 @@
 This repository bootstraps a fresh Ubuntu machine for development work with a bias toward maintainable, repeatable setup and strong support for terminal-first coding agents.
 
 The default path installs:
-- `lastpass-cli` as the first step (bootstrap dependency for secrets)
 - core agent-oriented Ubuntu packages from `apt`
 - command compatibility symlinks for `fd` and `bat`
 - Google Chrome from its official repository
@@ -37,11 +36,6 @@ Interactive or highly personal steps are opt-in:
    ```bash
    ./run.sh
    ```
-
-After the system step completes, log in to LastPass to allow future runs to auto-populate API keys:
-```bash
-lpass login <your-email>
-```
 
 ## What Is Considered Essential
 
@@ -86,15 +80,7 @@ Include optional modules:
 
 The `agents` step writes MCP configuration to `~/.claude.json` (Claude Code) and `~/.openai/mcp.json` (Codex).
 
-Token-gated MCPs (Linear, Notion, Miro) are skipped gracefully if no key is found — they never block installation. To auto-populate keys, store them in LastPass before running:
-
-| MCP | LastPass entry | Where to get the key |
-|-----|---------------|----------------------|
-| Linear | `Linear API Key` | https://linear.app/settings/api |
-| Notion | `Notion API Key` | https://www.notion.so/profile/integrations |
-| Miro | `Miro API Key` | https://miro.com/app/settings/user-profile/apps |
-
-Or fill them in manually after bootstrap:
+Token-gated MCPs (Linear, Notion, Miro) are skipped gracefully if no key is found — they never block installation. Fill them in manually after bootstrap:
 ```bash
 # Example for Claude Code
 jq '.mcpServers.linear.env.LINEAR_API_KEY = "your-key"' ~/.claude.json | sponge ~/.claude.json
