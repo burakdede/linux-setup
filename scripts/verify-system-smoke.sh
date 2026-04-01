@@ -36,6 +36,7 @@ base_commands=(
     claude
     codex
     gemini
+    pre-commit
     ruff
     yamllint
     eslint

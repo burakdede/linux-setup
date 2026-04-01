@@ -11,6 +11,7 @@ if [[ "${LINUX_SETUP_SMOKE_FULL:-0}" != "1" ]]; then
     export LINUX_SETUP_SKIP_GO="${LINUX_SETUP_SKIP_GO:-1}"
     export LINUX_SETUP_SKIP_PYTHON="${LINUX_SETUP_SKIP_PYTHON:-1}"
     export LINUX_SETUP_SKIP_RUST="${LINUX_SETUP_SKIP_RUST:-1}"
+    export LINUX_SETUP_SKIP_UFW="${LINUX_SETUP_SKIP_UFW:-1}"
 fi
 
 echo "==> Running system smoke install"

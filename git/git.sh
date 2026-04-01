@@ -19,20 +19,38 @@ if ! command_exists git; then
 fi
 log_success "Git is installed."
 
-# Get git email from existing config
-echo_header "Getting Git Configuration"
-email=$(git config user.email 2>/dev/null || echo "")
-if [ -z "$email" ]; then
-    log_error "No email configured in Git. Please set git config user.email"
+# Prompt for git identity
+echo_header "Git Identity"
+existing_name=$(git config --global user.name 2>/dev/null || echo "")
+existing_email=$(git config --global user.email 2>/dev/null || echo "")
+
+if [[ -n "$existing_name" ]]; then
+    read -r -p "Git name [${existing_name}]: " input_name
+    name="${input_name:-$existing_name}"
+else
+    read -r -p "Git name: " name
+fi
+
+if [[ -z "$name" ]]; then
+    log_error "Git name cannot be empty."
     exit 1
 fi
 
-# Validate email format
+if [[ -n "$existing_email" ]]; then
+    read -r -p "Git email [${existing_email}]: " input_email
+    email="${input_email:-$existing_email}"
+else
+    read -r -p "Git email: " email
+fi
+
 if [[ ! "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
     log_error "Invalid email format: $email"
     exit 1
 fi
-log_info "Using email: $email"
+
+git config --global user.name "$name"
+git config --global user.email "$email"
+log_success "Git identity set: ${name} <${email}>"
 
 # Ensure SSH directory exists with proper permissions
 echo_header "Setting Up SSH Directory"

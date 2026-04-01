@@ -85,7 +85,7 @@ After that:
 - `pre-push` runs `bash scripts/test.sh`
 - GitHub Actions runs the same check on pushes and pull requests
 
-The shared gate lives in [scripts/test.sh](/home/burak/Projects/linux-setup/scripts/test.sh).
+The shared gate lives in [scripts/test.sh](scripts/test.sh).
 
 For a disposable Ubuntu smoke test of the real installer, use:
 

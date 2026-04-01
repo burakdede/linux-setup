@@ -54,7 +54,6 @@ class BootstrapRepoTests(unittest.TestCase):
             "scripts/test.sh",
             "scripts/verify-system-smoke.sh",
             "scripts/vm-smoke-test.sh",
-            "web2app/web2app.sh",
         ]
         result = self.run_cmd(["bash", "-n", *scripts])
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -75,7 +74,6 @@ class BootstrapRepoTests(unittest.TestCase):
             "scripts/test.sh",
             "scripts/verify-system-smoke.sh",
             "scripts/vm-smoke-test.sh",
-            "web2app/web2app.sh",
             "dotfiles/.bash_aliases",
         ]
         result = self.run_cmd(["shellcheck", *files])
@@ -129,7 +127,6 @@ class BootstrapRepoTests(unittest.TestCase):
             (repo / "system").mkdir()
             (repo / "dotfiles").mkdir()
             (repo / "sdk").mkdir()
-            (repo / "web2app").mkdir()
             (repo / "git").mkdir()
 
             shutil.copy2(REPO_ROOT / "run.sh", repo / "run.sh")
@@ -142,7 +139,6 @@ class BootstrapRepoTests(unittest.TestCase):
                 ("system", "system.sh", "system"),
                 ("dotfiles", "dotfiles.sh", "dotfiles"),
                 ("sdk", "sdk.sh", "sdk"),
-                ("web2app", "web2app.sh", "web2app"),
                 ("git", "git.sh", "git"),
             ]:
                 script_path = repo / step_dir / script_name
@@ -180,7 +176,6 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertTrue((marker_dir / "sdk").exists())
             self.assertFalse((marker_dir / "system").exists())
             self.assertFalse((marker_dir / "dotfiles").exists())
-            self.assertFalse((marker_dir / "web2app").exists())
             self.assertFalse((marker_dir / "git").exists())
             self.assertFalse((marker_dir / "settings").exists())
 
@@ -358,10 +353,18 @@ class BootstrapRepoTests(unittest.TestCase):
                 install_uv_tools() {{ printf 'uv-tools\\n' >> "{log_file}"; }}
                 install_claude_code() {{ printf 'claude\\n' >> "{log_file}"; }}
                 install_npm_clis() {{ printf 'npm\\n' >> "{log_file}"; }}
+                install_go_runtime() {{ printf 'go\\n' >> "{log_file}"; }}
+                install_python_runtime() {{ printf 'python\\n' >> "{log_file}"; }}
+                install_rust() {{ printf 'rust\\n' >> "{log_file}"; }}
+                setup_ufw() {{ printf 'ufw\\n' >> "{log_file}"; }}
                 echo_header() {{ :; }}
                 log_success() {{ :; }}
                 export LINUX_SETUP_SKIP_SNAPS=1
                 export LINUX_SETUP_SKIP_CHROME=1
+                export LINUX_SETUP_SKIP_GO=1
+                export LINUX_SETUP_SKIP_PYTHON=1
+                export LINUX_SETUP_SKIP_RUST=1
+                export LINUX_SETUP_SKIP_UFW=1
                 main
                 """
             )
@@ -374,6 +377,10 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertIn("docker", output)
             self.assertNotIn("snaps", output)
             self.assertNotIn("chrome", output)
+            self.assertNotIn("go", output)
+            self.assertNotIn("python", output)
+            self.assertNotIn("rust", output)
+            self.assertNotIn("ufw", output)
 
     def test_dotfiles_script_is_idempotent(self):
         with tempfile.TemporaryDirectory() as temp_home:

@@ -1,6 +1,3 @@
-[user]
-	name = Burak Dede
-	email = burak@burakdede.com
 [filter "media"]
 	required = true
 	clean = git media clean %f
