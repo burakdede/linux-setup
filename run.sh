@@ -26,6 +26,7 @@ Valid STEP values:
   system
   dotfiles
   sdk
+  agents
   git
   settings
 EOF
@@ -105,6 +106,7 @@ main() {
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
         "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
         "sdk|$ROOT_DIR/sdk/sdk.sh|SDKMAN toolchain"
+        "agents|$ROOT_DIR/agents/agents.sh|Coding agent MCP configuration"
     )
 
     if [[ $INCLUDE_GIT -eq 1 ]]; then

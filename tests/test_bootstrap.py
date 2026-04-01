@@ -127,6 +127,7 @@ class BootstrapRepoTests(unittest.TestCase):
             (repo / "system").mkdir()
             (repo / "dotfiles").mkdir()
             (repo / "sdk").mkdir()
+            (repo / "agents").mkdir()
             (repo / "git").mkdir()
 
             shutil.copy2(REPO_ROOT / "run.sh", repo / "run.sh")
@@ -139,6 +140,7 @@ class BootstrapRepoTests(unittest.TestCase):
                 ("system", "system.sh", "system"),
                 ("dotfiles", "dotfiles.sh", "dotfiles"),
                 ("sdk", "sdk.sh", "sdk"),
+                ("agents", "agents.sh", "agents"),
                 ("git", "git.sh", "git"),
             ]:
                 script_path = repo / step_dir / script_name
@@ -176,6 +178,7 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertTrue((marker_dir / "sdk").exists())
             self.assertFalse((marker_dir / "system").exists())
             self.assertFalse((marker_dir / "dotfiles").exists())
+            self.assertFalse((marker_dir / "agents").exists())
             self.assertFalse((marker_dir / "git").exists())
             self.assertFalse((marker_dir / "settings").exists())
 

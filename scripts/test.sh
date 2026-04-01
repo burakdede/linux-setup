@@ -17,6 +17,7 @@ bash -n \
   scripts/vm-smoke-test.sh \
   system/system.sh \
   sdk/sdk.sh \
+  agents/agents.sh \
   git/git.sh \
   dotfiles/dotfiles.sh \
   utils/utils.sh \
@@ -34,6 +35,7 @@ shellcheck \
   scripts/vm-smoke-test.sh \
   system/system.sh \
   sdk/sdk.sh \
+  agents/agents.sh \
   git/git.sh \
   dotfiles/dotfiles.sh \
   utils/utils.sh \
