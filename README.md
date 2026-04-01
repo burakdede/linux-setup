@@ -8,7 +8,7 @@ The default path installs:
 - Google Chrome from its official repository
 - Docker CLI and Compose plugin from Docker's official repository
 - GitHub-release binaries for `yq`, `eza`, `sd`, and `scc`
-- `uv` tools such as Aider, Ruff, and Yamllint
+- `uv` tools such as Ruff and Yamllint
 - `mise` as the runtime manager, with Node LTS for Node-based CLIs
 - terminal coding agents such as Codex, Claude Code, Gemini CLI, plus `eslint` and `prettier`
 - personal dotfiles and web app launchers
@@ -41,7 +41,7 @@ This repo now treats the following categories as the base layer for coding agent
 - file inspection and structured parsing: `bat`, `jq`, `yq`
 - safer text transforms and repo understanding: `sd`, `scc`
 - quality gates: `shellcheck`, `ruff`, `yamllint`, `eslint`, `prettier`
-- agent CLIs: `codex`, `claude`, `gemini`, `aider`
+- agent CLIs: `codex`, `claude`, `gemini`
 - runtime management: `mise` instead of `nvm`
 
 That keeps the machine optimized for token-efficient codebase work without pulling in every situational devops tool by default.

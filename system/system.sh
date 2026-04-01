@@ -292,6 +292,18 @@ install_node_runtime() {
     "$MISE_BIN" use --global node@lts
 }
 
+setup_ufw() {
+    echo_header "ufw firewall"
+
+    sudo_run ufw --force reset
+    sudo_run ufw default deny incoming
+    sudo_run ufw default allow outgoing
+    sudo_run ufw allow ssh
+    sudo_run ufw --force enable
+
+    log_info "ufw enabled: deny incoming, allow outgoing, SSH allowed."
+}
+
 install_go_runtime() {
     echo_header "Go via mise"
     install_mise
@@ -388,6 +400,10 @@ main() {
 
     if ! should_skip_step RUST; then
         install_rust
+    fi
+
+    if ! should_skip_step UFW; then
+        setup_ufw
     fi
 
     echo_header "System bootstrap complete"

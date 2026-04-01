@@ -38,6 +38,11 @@ xz-utils
 zip
 zstd
 
+# Security and system safety
+fail2ban
+timeshift
+ufw
+
 # Useful local development utilities
 alacritty
 ffmpeg

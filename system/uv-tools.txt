@@ -1,5 +1,4 @@
 # Python-based agent helpers and fast linting
-aider-chat
 pre-commit
 ruff
 yamllint

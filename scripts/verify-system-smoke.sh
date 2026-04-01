@@ -36,7 +36,6 @@ base_commands=(
     claude
     codex
     gemini
-    aider
     ruff
     yamllint
     eslint
