@@ -352,8 +352,6 @@ class BootstrapRepoTests(unittest.TestCase):
                 ensure_agent_command_names() {{ printf 'compat\\n' >> "{log_file}"; }}
                 setup_docker_repo() {{ printf 'docker\\n' >> "{log_file}"; }}
                 install_snap_packages() {{ printf 'snaps\\n' >> "{log_file}"; }}
-                setup_vscode_repo() {{ printf 'vscode\\n' >> "{log_file}"; }}
-                install_vscode_extensions() {{ printf 'vscode-ext\\n' >> "{log_file}"; }}
                 setup_google_chrome_repo() {{ printf 'chrome\\n' >> "{log_file}"; }}
                 install_github_release_tools() {{ printf 'gh-tools\\n' >> "{log_file}"; }}
                 install_uv() {{ printf 'uv\\n' >> "{log_file}"; }}
@@ -363,7 +361,6 @@ class BootstrapRepoTests(unittest.TestCase):
                 echo_header() {{ :; }}
                 log_success() {{ :; }}
                 export LINUX_SETUP_SKIP_SNAPS=1
-                export LINUX_SETUP_SKIP_VSCODE=1
                 export LINUX_SETUP_SKIP_CHROME=1
                 main
                 """
@@ -376,7 +373,6 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertIn("apt", output)
             self.assertIn("docker", output)
             self.assertNotIn("snaps", output)
-            self.assertNotIn("vscode", output)
             self.assertNotIn("chrome", output)
 
     def test_dotfiles_script_is_idempotent(self):

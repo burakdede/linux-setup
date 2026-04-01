@@ -5,7 +5,7 @@ This repository bootstraps a fresh Ubuntu machine for development work with a bi
 The default path installs:
 - core agent-oriented Ubuntu packages from `apt`
 - command compatibility symlinks for `fd` and `bat`
-- VS Code and Google Chrome from their official repositories
+- Google Chrome from its official repository
 - Docker CLI and Compose plugin from Docker's official repository
 - GitHub-release binaries for `yq`, `eza`, `sd`, and `scc`
 - `uv` tools such as Aider, Ruff, and Yamllint

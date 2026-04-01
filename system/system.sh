@@ -116,50 +116,6 @@ install_snap_packages() {
     done < "$SNAP_PACKAGES_FILE"
 }
 
-setup_vscode_repo() {
-    if command_exists code; then
-        log_info "VS Code is already installed."
-        return 0
-    fi
-
-    echo_header "VS Code"
-    sudo_run mkdir -p /etc/apt/keyrings
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/keyrings/vscode.gpg
-    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/vscode.gpg] https://packages.microsoft.com/repos/code stable main\n' | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
-    sudo_run chmod 644 /etc/apt/keyrings/vscode.gpg
-    sudo_run apt-get update
-    sudo_run apt-get install -y code
-}
-
-install_vscode_extensions() {
-    local extensions_file="$SCRIPT_DIR/vscode-extensions.txt"
-
-    echo_header "VS Code extensions"
-    if ! command_exists code; then
-        log_warn "Skipping VS Code extensions; code command is unavailable."
-        return 0
-    fi
-
-    if [[ ! -f "$extensions_file" ]]; then
-        log_warn "Missing ${extensions_file}; skipping VS Code extensions."
-        return 0
-    fi
-
-    local extension
-    while IFS= read -r extension || [[ -n "$extension" ]]; do
-        extension="${extension%%#*}"
-        extension="$(trim "$extension")"
-        [[ -z "$extension" ]] && continue
-
-        if code --list-extensions | grep -Fxq "$extension"; then
-            log_info "VS Code extension already installed: $extension"
-            continue
-        fi
-
-        log_info "Installing VS Code extension: $extension"
-        code --install-extension "$extension" --force
-    done < "$extensions_file"
-}
 
 setup_google_chrome_repo() {
     if command_exists google-chrome; then
@@ -374,13 +330,6 @@ main() {
         install_snap_packages
     fi
 
-    if ! should_skip_step VSCODE; then
-        setup_vscode_repo
-    fi
-
-    if ! should_skip_step VSCODE_EXTENSIONS; then
-        install_vscode_extensions
-    fi
 
     if ! should_skip_step CHROME; then
         setup_google_chrome_repo
