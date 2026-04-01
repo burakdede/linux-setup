@@ -3,3 +3,14 @@
 @openai/codex
 eslint
 prettier
+
+# MCP servers — pre-installed globally so agents.sh can reference them
+# without npx downloading packages on every agent startup
+@modelcontextprotocol/server-filesystem
+@modelcontextprotocol/server-memory
+@modelcontextprotocol/server-sequential-thinking
+@modelcontextprotocol/server-fetch
+@playwright/mcp
+@linear/mcp-server
+@notionhq/notion-mcp-server
+@mirohq/miro-mcp

@@ -30,6 +30,10 @@ should_skip_step() {
     flag_enabled "${!var_name:-0}"
 }
 
+upgrade_enabled() {
+    flag_enabled "${LINUX_SETUP_UPGRADE:-0}"
+}
+
 ensure_core_packages() {
     sudo_run apt-get update
     sudo_run apt-get install -y --no-install-recommends \
@@ -182,8 +186,8 @@ install_github_release_tools() {
         IFS='|' read -r command_name repo asset_pattern mode binary_name <<< "$line"
         binary_name="${binary_name:-$command_name}"
 
-        if command_exists "$command_name"; then
-            log_info "Tool already installed: $command_name"
+        if command_exists "$command_name" && ! upgrade_enabled; then
+            log_info "Tool already installed: $command_name (set LINUX_SETUP_UPGRADE=1 to upgrade)"
             continue
         fi
 

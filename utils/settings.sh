@@ -24,6 +24,32 @@ array_contains() {
     return 1
 }
 
+# Map extension IDs to their actual gsettings schema names (where they differ from
+# the part before @, which is the naive default used in cleanup).
+extension_schema_name() {
+    local ext="$1"
+    case "$ext" in
+        just-perfection-desktop@just-perfection) echo "just-perfection" ;;
+        AlphabeticalAppGrid@stuarthayhurst)      echo "alphabetical-app-grid" ;;
+        *)                                        echo "${ext%@*}" ;;
+    esac
+}
+
+# Wait until a gsettings schema becomes readable, or time out.
+wait_for_schema() {
+    local schema="$1"
+    local attempts=0
+    while ! gsettings list-keys "$schema" &>/dev/null; do
+        (( attempts++ ))
+        if (( attempts >= 20 )); then
+            log_warn "Schema $schema not available after 20 seconds — skipping."
+            return 1
+        fi
+        sleep 1
+    done
+    return 0
+}
+
 configure_gnome_extensions() {
     # ========================= Configure GNOME Extensions =========================
     echo_header "Setting up GNOME Extensions"
@@ -71,15 +97,9 @@ configure_gnome_extensions() {
                 rm -rf "$extension_dir"
             fi
 
-            schema_name="${ext%@*}"
+            schema_name="$(extension_schema_name "$ext")"
             log_info "Resetting gsettings schema: org.gnome.shell.extensions.$schema_name"
             gsettings reset-recursively "org.gnome.shell.extensions.$schema_name" || log_warn "No gsettings schema found to reset."
-
-            schema_file="/usr/share/glib-2.0/schemas/org.gnome.shell.extensions.$schema_name.gschema.xml"
-            if [ -f "$schema_file" ]; then
-                log_info "Removing system schema file: $schema_file"
-                sudo rm -f "$schema_file"
-            fi
             log_success "Cleanup complete for: $ext"
         fi
         echo ""
@@ -109,50 +129,11 @@ configure_gnome_extensions() {
         log_success "Successfully installed and enabled: $ext"
     done
 
-    log_info "Waiting for extensions to be fully installed and loaded..."
-    sudo mkdir -p /usr/share/glib-2.0/schemas
-
-    for ext in "${extensions_to_install[@]}"; do
-        extension_dir="$HOME/.local/share/gnome-shell/extensions/$ext"
-        if [ -d "$extension_dir" ]; then
-            log_info "Processing extension $ext..."
-
-            schema_dir="$extension_dir/schemas"
-            if [ -d "$schema_dir" ]; then
-                log_info "Found schemas directory: $schema_dir"
-                (cd "$schema_dir" && glib-compile-schemas . 2>/dev/null) || true
-
-                if ls "$schema_dir"/*.gschema.xml 1> /dev/null 2>&1; then
-                    log_info "Copying schema files to system directory..."
-                    sudo cp -v "$schema_dir"/*.gschema.xml /usr/share/glib-2.0/schemas/ 2>/dev/null || true
-                    log_success "Successfully processed schema files for $ext"
-                else
-                    log_warn "No schema files found in $schema_dir"
-                fi
-            else
-                log_info "No schemas directory found for $ext"
-                schema_name="${ext%@*}"
-                schema_file="$extension_dir/org.gnome.shell.extensions.$schema_name.gschema.xml"
-                if [ -f "$schema_file" ]; then
-                    log_info "Found schema file: $schema_file"
-                    sudo cp -v "$schema_file" /usr/share/glib-2.0/schemas/
-                else
-                    log_warn "No schema file found for $ext"
-                fi
-            fi
-        else
-            log_warn "Extension directory not found: $extension_dir"
-        fi
-    done
-
-    sudo chown -R root:root /usr/share/glib-2.0/schemas/
-    sudo chmod 644 /usr/share/glib-2.0/schemas/*
-
-    log_info "Compiling system schemas..."
-    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-
-    log_info "Waiting for GNOME Shell to register schemas..."
-    sleep 5
+    # gext installs schemas into the extension directory under ~/.local — GNOME Shell
+    # reads them from there directly. No need to copy to /usr/share or recompile
+    # system schemas. Schema availability is checked per-extension before gsettings
+    # calls via wait_for_schema below.
+    log_info "Extensions installed and enabled."
 }
 
 if ! has_desktop_session || ! command_exists gsettings; then
@@ -194,50 +175,61 @@ done
 configure_gnome_extensions
 
 # Configure Tactile
-gsettings set org.gnome.shell.extensions.tactile col-0 1
-gsettings set org.gnome.shell.extensions.tactile col-1 2
-gsettings set org.gnome.shell.extensions.tactile col-2 1
-gsettings set org.gnome.shell.extensions.tactile col-3 0
-gsettings set org.gnome.shell.extensions.tactile row-0 1
-gsettings set org.gnome.shell.extensions.tactile row-1 1
-gsettings set org.gnome.shell.extensions.tactile gap-size 32
+if wait_for_schema org.gnome.shell.extensions.tactile; then
+    gsettings set org.gnome.shell.extensions.tactile col-0 1
+    gsettings set org.gnome.shell.extensions.tactile col-1 2
+    gsettings set org.gnome.shell.extensions.tactile col-2 1
+    gsettings set org.gnome.shell.extensions.tactile col-3 0
+    gsettings set org.gnome.shell.extensions.tactile row-0 1
+    gsettings set org.gnome.shell.extensions.tactile row-1 1
+    gsettings set org.gnome.shell.extensions.tactile gap-size 32
+fi
 
 # Configure Just Perfection
-gsettings set org.gnome.shell.extensions.just-perfection animation 2
-gsettings set org.gnome.shell.extensions.just-perfection dash-app-running true
-gsettings set org.gnome.shell.extensions.just-perfection workspace true
-gsettings set org.gnome.shell.extensions.just-perfection workspace-popup false
+if wait_for_schema org.gnome.shell.extensions.just-perfection; then
+    gsettings set org.gnome.shell.extensions.just-perfection animation 2
+    gsettings set org.gnome.shell.extensions.just-perfection dash-app-running true
+    gsettings set org.gnome.shell.extensions.just-perfection workspace true
+    gsettings set org.gnome.shell.extensions.just-perfection workspace-popup false
+fi
 
 # Configure Blur My Shell
-gsettings set org.gnome.shell.extensions.blur-my-shell.appfolder blur false
-gsettings set org.gnome.shell.extensions.blur-my-shell.lockscreen blur false
-gsettings set org.gnome.shell.extensions.blur-my-shell.screenshot blur false
-gsettings set org.gnome.shell.extensions.blur-my-shell.window-list blur false
-gsettings set org.gnome.shell.extensions.blur-my-shell.panel blur false
-gsettings set org.gnome.shell.extensions.blur-my-shell.overview blur true
-gsettings set org.gnome.shell.extensions.blur-my-shell.overview pipeline 'pipeline_default'
-gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true
-gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock brightness 0.6
-gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock sigma 30
-gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true
-gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0
+if wait_for_schema org.gnome.shell.extensions.blur-my-shell; then
+    gsettings set org.gnome.shell.extensions.blur-my-shell.appfolder blur false
+    gsettings set org.gnome.shell.extensions.blur-my-shell.lockscreen blur false
+    gsettings set org.gnome.shell.extensions.blur-my-shell.screenshot blur false
+    gsettings set org.gnome.shell.extensions.blur-my-shell.window-list blur false
+    gsettings set org.gnome.shell.extensions.blur-my-shell.panel blur false
+    gsettings set org.gnome.shell.extensions.blur-my-shell.overview blur true
+    gsettings set org.gnome.shell.extensions.blur-my-shell.overview pipeline 'pipeline_default'
+    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true
+    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock brightness 0.6
+    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock sigma 30
+    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true
+    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0
+fi
 
 # Configure Space Bar
-gsettings set org.gnome.shell.extensions.space-bar.behavior smart-workspace-names false
-gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts false
-gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-move-to-workspace-shortcuts true
-gsettings set org.gnome.shell.extensions.space-bar.shortcuts open-menu "@as []"
+if wait_for_schema org.gnome.shell.extensions.space-bar; then
+    gsettings set org.gnome.shell.extensions.space-bar.behavior smart-workspace-names false
+    gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts false
+    gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-move-to-workspace-shortcuts true
+    gsettings set org.gnome.shell.extensions.space-bar.shortcuts open-menu "@as []"
+fi
 
 # Configure TopHat
-gsettings set org.gnome.shell.extensions.tophat show-icons true
-gsettings set org.gnome.shell.extensions.tophat show-cpu true
-gsettings set org.gnome.shell.extensions.tophat show-mem true
-gsettings set org.gnome.shell.extensions.tophat show-disk true
-gsettings set org.gnome.shell.extensions.tophat show-fs true
-gsettings set org.gnome.shell.extensions.tophat network-usage-unit bits
+if wait_for_schema org.gnome.shell.extensions.tophat; then
+    gsettings set org.gnome.shell.extensions.tophat show-icons true
+    gsettings set org.gnome.shell.extensions.tophat show-cpu true
+    gsettings set org.gnome.shell.extensions.tophat show-mem true
+    gsettings set org.gnome.shell.extensions.tophat show-disk true
+    gsettings set org.gnome.shell.extensions.tophat network-usage-unit bits
+fi
 
 # Configure AlphabeticalAppGrid
-gsettings set org.gnome.shell.extensions.alphabetical-app-grid folder-order-position 'end'
+if wait_for_schema org.gnome.shell.extensions.alphabetical-app-grid; then
+    gsettings set org.gnome.shell.extensions.alphabetical-app-grid folder-order-position 'end'
+fi
 
 
 # ========================= Configure window manager preferences =========================
@@ -262,50 +254,13 @@ gsettings set org.gnome.desktop.wm.keybindings close "['<Alt>q']"
 echo_header "Configuring window management shortcuts..."
 
 
-# Configure Tiling Assistant shortcuts (if extension is installed)
-if gnome-extensions list | grep -q "tiling-assistant"; then
-    log_info "Configuring Tiling Assistant shortcuts..."
-
-    # Ensure tiling is enabled
-    gsettings set org.gnome.mutter edge-tiling true      
-
-
-    # Disable GNOME's built-in tiling and maximize shortcuts to prevent conflicts with Tiling Assistant
-    gsettings set org.gnome.desktop.wm.keybindings move-to-side-w "['disabled']"
-    gsettings set org.gnome.desktop.wm.keybindings move-to-side-e "['disabled']"
-    gsettings set org.gnome.desktop.wm.keybindings maximize "['disabled']"
-    gsettings set org.gnome.desktop.wm.keybindings unmaximize "['disabled']"
-
-    # Window Management
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-maximize "['<Super>Up']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant restore-window "['<Super>Down']"
-    
-    # Tiling Shortcuts
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-left-half "['<Super>Left']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-right-half "['<Super>Right']"
-
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-top-half "['<Super><Shift>Up']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottom-half "['<Super><Shift>Down']"
-    
-    # Quarter Tiling
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-topleft-quarter "['<Super><Control>Left']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-topright-quarter "['<Super><Control>Right']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottomleft-quarter "['<Super><Control><Shift>Left']"
-    gsettings set org.gnome.shell.extensions.tiling-assistant tile-bottomright-quarter "['<Super><Control><Shift>Right']"
-    
-    # Additional Tiling Assistant Settings
-    gsettings set org.gnome.shell.extensions.tiling-assistant enable-tiling-popup true
-    gsettings set org.gnome.shell.extensions.tiling-assistant window-gap 5
-    gsettings set org.gnome.shell.extensions.tiling-assistant single-screen-gap 5
-    
-else
-    log_warn "Tiling Assistant extension not found. Using default GNOME tiling."
-    # Fallback to GNOME's built-in tiling if Tiling Assistant is not installed
-    gsettings set org.gnome.desktop.wm.keybindings move-to-side-w "['<Super>Left']"
-    gsettings set org.gnome.desktop.wm.keybindings move-to-side-e "['<Super>Right']"
-    gsettings set org.gnome.desktop.wm.keybindings maximize "['<Super>Up']"
-    gsettings set org.gnome.desktop.wm.keybindings unmaximize "['<Super>Down']"
-fi
+# GNOME built-in tiling keybindings (tiling-assistant@ubuntu.com removed from repos;
+# Tactile handles grid tiling via its own gsettings above)
+gsettings set org.gnome.mutter edge-tiling true
+gsettings set org.gnome.desktop.wm.keybindings move-to-side-w "['<Super>Left']"
+gsettings set org.gnome.desktop.wm.keybindings move-to-side-e "['<Super>Right']"
+gsettings set org.gnome.desktop.wm.keybindings maximize "['<Super>Up']"
+gsettings set org.gnome.desktop.wm.keybindings unmaximize "['<Super>Down']"
 
 
 # Disable recursive search in Files (nautilus)
@@ -325,33 +280,33 @@ echo_header "Configuring Dock Settings"
 # Configure dock appearance and behavior
 log_info "Configuring dock settings..."
 # Set Dock to bottom of the screen
-gsettings set org.gnome.shell.extensions.dash-to-dock dock-position BOTTOM
+gsettings set org.gnome.shell.extensions.ubuntu-dock dock-position BOTTOM
 # Auto-hide dock
-gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed false
+gsettings set org.gnome.shell.extensions.ubuntu-dock dock-fixed false
 # Set icon size to 32
-gsettings set org.gnome.shell.extensions.dash-to-dock dash-max-icon-size 32
+gsettings set org.gnome.shell.extensions.ubuntu-dock dash-max-icon-size 32
 # Show on primary display only
-gsettings set org.gnome.shell.extensions.dash-to-dock multi-monitor false
+gsettings set org.gnome.shell.extensions.ubuntu-dock multi-monitor false
 # Show applications at top of dock
-gsettings set org.gnome.shell.extensions.dash-to-dock show-apps-at-top true
+gsettings set org.gnome.shell.extensions.ubuntu-dock show-apps-at-top true
 # Show favorite applications in dock
-gsettings set org.gnome.shell.extensions.dash-to-dock show-favorites true
+gsettings set org.gnome.shell.extensions.ubuntu-dock show-favorites true
 # Show running applications even if not pinned
-gsettings set org.gnome.shell.extensions.dash-to-dock show-running true
+gsettings set org.gnome.shell.extensions.ubuntu-dock show-running true
 # Show mounted drives in dock
-gsettings set org.gnome.shell.extensions.dash-to-dock show-mounts true
+gsettings set org.gnome.shell.extensions.ubuntu-dock show-mounts true
 # Configure auto-hide behavior
-gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
+gsettings set org.gnome.shell.extensions.ubuntu-dock autohide true
 # Set hide delay (in seconds)
-gsettings set org.gnome.shell.extensions.dash-to-dock hide-delay 0.2
+gsettings set org.gnome.shell.extensions.ubuntu-dock hide-delay 0.2
 # Set running indicator style
-gsettings set org.gnome.shell.extensions.dash-to-dock running-indicator-style 'DOTS'
+gsettings set org.gnome.shell.extensions.ubuntu-dock running-indicator-style 'DOTS'
 # Set background opacity
-gsettings set org.gnome.shell.extensions.dash-to-dock background-opacity 0.5
+gsettings set org.gnome.shell.extensions.ubuntu-dock background-opacity 0.5
 # Set transparency mode
-gsettings set org.gnome.shell.extensions.dash-to-dock transparency-mode 'FIXED'
+gsettings set org.gnome.shell.extensions.ubuntu-dock transparency-mode 'FIXED'
 # Set dock not to extend height
-gsettings set org.gnome.shell.extensions.dash-to-dock extend-height false
+gsettings set org.gnome.shell.extensions.ubuntu-dock extend-height false
 
 # ========================= Screenshot and Recording =========================
 echo_header "Screenshot and recording shortcuts..."

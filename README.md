@@ -76,6 +76,38 @@ Include optional modules:
 ./run.sh --include-git --include-settings
 ```
 
+## Environment Variables
+
+### Skipping steps
+
+Any major install step can be skipped by setting `LINUX_SETUP_SKIP_<STEP>=1` before running:
+
+```bash
+LINUX_SETUP_SKIP_DOCKER=1 LINUX_SETUP_SKIP_CHROME=1 ./run.sh
+```
+
+| Variable | Skips |
+|---|---|
+| `LINUX_SETUP_SKIP_DOCKER` | Docker CLI + Compose plugin |
+| `LINUX_SETUP_SKIP_SNAPS` | All snap packages |
+| `LINUX_SETUP_SKIP_CHROME` | Google Chrome |
+| `LINUX_SETUP_SKIP_GITHUB_RELEASE_TOOLS` | `yq`, `eza`, `sd`, `scc` |
+| `LINUX_SETUP_SKIP_UV` | uv + uv tools |
+| `LINUX_SETUP_SKIP_CLAUDE` | Claude Code |
+| `LINUX_SETUP_SKIP_NPM_TOOLS` | npm CLIs and MCP packages |
+| `LINUX_SETUP_SKIP_GO` | Go runtime via mise |
+| `LINUX_SETUP_SKIP_PYTHON` | Python runtime via mise |
+| `LINUX_SETUP_SKIP_RUST` | Rust via rustup |
+| `LINUX_SETUP_SKIP_UFW` | ufw firewall setup |
+
+### Upgrading GitHub release tools
+
+By default `yq`, `eza`, `sd`, and `scc` are skipped if already installed. To force a reinstall to the latest release:
+
+```bash
+LINUX_SETUP_UPGRADE=1 ./run.sh --only system
+```
+
 ## MCP Servers
 
 The `agents` step writes MCP configuration to `~/.claude.json` (Claude Code) and `~/.openai/mcp.json` (Codex).
