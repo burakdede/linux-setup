@@ -292,6 +292,32 @@ install_node_runtime() {
     "$MISE_BIN" use --global node@lts
 }
 
+install_go_runtime() {
+    echo_header "Go via mise"
+    install_mise
+    "$MISE_BIN" use --global go@latest
+}
+
+install_python_runtime() {
+    echo_header "Python via mise"
+    install_mise
+    "$MISE_BIN" use --global python@latest
+}
+
+install_rust() {
+    echo_header "Rust via rustup"
+
+    if command_exists rustup; then
+        log_info "rustup is already installed."
+        rustup update stable --no-self-update
+        return 0
+    fi
+
+    curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
+    # shellcheck source=/dev/null
+    source "$HOME/.cargo/env"
+}
+
 install_npm_clis() {
     echo_header "Node-based tooling"
 
@@ -350,6 +376,18 @@ main() {
 
     if ! should_skip_step NPM_TOOLS; then
         install_npm_clis
+    fi
+
+    if ! should_skip_step GO; then
+        install_go_runtime
+    fi
+
+    if ! should_skip_step PYTHON; then
+        install_python_runtime
+    fi
+
+    if ! should_skip_step RUST; then
+        install_rust
     fi
 
     echo_header "System bootstrap complete"
