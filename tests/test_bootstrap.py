@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -35,6 +36,21 @@ class BootstrapRepoTests(unittest.TestCase):
             filtered_lines.append(line)
 
         script_path = directory / "system-sourceable.sh"
+        script_path.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
+        return script_path
+
+    def create_sourceable_agents_script(self, directory: Path) -> Path:
+        original = (REPO_ROOT / "agents" / "agents.sh").read_text(encoding="utf-8")
+        lines = original.splitlines()
+        filtered_lines = []
+        for line in lines:
+            if line.strip() == 'source "$SCRIPT_DIR/../utils/utils.sh"':
+                continue
+            if line.strip() == "configure_mcps":
+                continue
+            filtered_lines.append(line)
+
+        script_path = directory / "agents-sourceable.sh"
         script_path.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
         return script_path
 
@@ -396,6 +412,67 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertTrue((Path(temp_home) / ".bash_aliases").exists())
+
+    def test_agents_script_writes_expected_mcp_commands(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            sourceable_script = self.create_sourceable_agents_script(tmp_path)
+            claude_json = tmp_path / "claude.json"
+            codex_json = tmp_path / "openai" / "mcp.json"
+            home = tmp_path / "home"
+            home.mkdir()
+
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                log_info() {{ :; }}
+                log_warn() {{ :; }}
+                log_success() {{ :; }}
+                echo_header() {{ :; }}
+                source "{sourceable_script}"
+                CLAUDE_JSON="{claude_json}"
+                CODEX_JSON="{codex_json}"
+                configure_mcps
+                """
+            )
+
+            env = os.environ.copy()
+            env["HOME"] = str(home)
+
+            result = self.run_cmd(["bash", "-lc", command], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            claude = json.loads(claude_json.read_text(encoding="utf-8"))
+            codex = json.loads(codex_json.read_text(encoding="utf-8"))
+
+            for payload in (claude, codex):
+                servers = payload["mcpServers"]
+                self.assertEqual(
+                    servers["filesystem"],
+                    {
+                        "command": "npx",
+                        "args": ["-y", "@modelcontextprotocol/server-filesystem", str(home)],
+                    },
+                )
+                self.assertEqual(
+                    servers["memory"],
+                    {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"]},
+                )
+                self.assertEqual(
+                    servers["sequential-thinking"],
+                    {
+                        "command": "npx",
+                        "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+                    },
+                )
+                self.assertEqual(
+                    servers["fetch"],
+                    {"command": "uvx", "args": ["mcp-server-fetch"]},
+                )
+                self.assertEqual(
+                    servers["playwright"],
+                    {"command": "npx", "args": ["-y", "@playwright/mcp"]},
+                )
 
 
 if __name__ == "__main__":

@@ -81,19 +81,19 @@ configure_mcps() {
 
     add_mcp_all "filesystem" "$(jq -n \
         --arg home "$HOME" \
-        '{command:"npx",args:["@modelcontextprotocol/server-filesystem",$home]}')"
+        '{command:"npx",args:["-y","@modelcontextprotocol/server-filesystem",$home]}')"
 
     add_mcp_all "memory" \
-        '{"command":"npx","args":["@modelcontextprotocol/server-memory"]}'
+        '{"command":"npx","args":["-y","@modelcontextprotocol/server-memory"]}'
 
     add_mcp_all "sequential-thinking" \
-        '{"command":"npx","args":["@modelcontextprotocol/server-sequential-thinking"]}'
+        '{"command":"npx","args":["-y","@modelcontextprotocol/server-sequential-thinking"]}'
 
     add_mcp_all "fetch" \
-        '{"command":"npx","args":["@modelcontextprotocol/server-fetch"]}'
+        '{"command":"uvx","args":["mcp-server-fetch"]}'
 
     add_mcp_all "playwright" \
-        '{"command":"npx","args":["@playwright/mcp"]}'
+        '{"command":"npx","args":["-y","@playwright/mcp"]}'
 
     # ── Token-gated MCPs ────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ configure_mcps() {
     local linear_config
     linear_config="$(jq -n \
         --arg key "$linear_key" \
-        '{command:"npx",args:["@linear/mcp-server"],env:{LINEAR_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","@linear/mcp-server"],env:{LINEAR_API_KEY:$key}}')"
 
     try_add_mcp_all "linear" "$linear_config"
 
@@ -117,7 +117,7 @@ configure_mcps() {
     local notion_config
     notion_config="$(jq -n \
         --arg key "$notion_key" \
-        '{command:"npx",args:["@notionhq/notion-mcp-server"],env:{NOTION_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","@notionhq/notion-mcp-server"],env:{NOTION_API_KEY:$key}}')"
 
     try_add_mcp_all "notion" "$notion_config"
 
@@ -132,7 +132,7 @@ configure_mcps() {
     local miro_config
     miro_config="$(jq -n \
         --arg key "$miro_key" \
-        '{command:"npx",args:["@mirohq/miro-mcp"],env:{MIRO_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","@mirohq/miro-mcp"],env:{MIRO_API_KEY:$key}}')"
 
     try_add_mcp_all "miro" "$miro_config"
 

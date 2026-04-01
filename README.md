@@ -8,7 +8,7 @@ The default path installs:
 - Google Chrome from its official repository
 - Docker CLI and Compose plugin from Docker's official repository
 - GitHub-release binaries for `yq`, `eza`, `sd`, and `scc`
-- `uv` tools: `pre-commit`, `ruff`, `yamllint`
+- `uv` tools: `mcp-server-fetch`, `pre-commit`, `ruff`, `yamllint`
 - `mise` as the runtime manager, with Node LTS, Go, Python, and Rust
 - terminal coding agents: Codex, Claude Code, Gemini CLI, plus `eslint` and `prettier`
 - firewall baseline: `ufw` (deny incoming, allow outgoing, SSH allowed), `fail2ban`

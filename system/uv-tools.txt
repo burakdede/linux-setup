@@ -1,4 +1,5 @@
 # Python-based agent helpers and fast linting
+mcp-server-fetch
 pre-commit
 ruff
 yamllint
