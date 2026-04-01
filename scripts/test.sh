@@ -20,8 +20,7 @@ bash -n \
   git/git.sh \
   dotfiles/dotfiles.sh \
   utils/utils.sh \
-  utils/settings.sh \
-  web2app/web2app.sh
+  utils/settings.sh
 
 echo "==> shellcheck"
 shellcheck \
@@ -39,7 +38,6 @@ shellcheck \
   dotfiles/dotfiles.sh \
   utils/utils.sh \
   utils/settings.sh \
-  web2app/web2app.sh \
   dotfiles/.bash_aliases
 
 echo "==> unittest"

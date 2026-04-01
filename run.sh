@@ -26,7 +26,6 @@ Valid STEP values:
   system
   dotfiles
   sdk
-  web2app
   git
   settings
 EOF
@@ -106,7 +105,6 @@ main() {
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
         "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
         "sdk|$ROOT_DIR/sdk/sdk.sh|SDKMAN toolchain"
-        "web2app|$ROOT_DIR/web2app/web2app.sh|Web app launchers"
     )
 
     if [[ $INCLUDE_GIT -eq 1 ]]; then

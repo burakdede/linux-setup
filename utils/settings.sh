@@ -383,24 +383,6 @@ SYSTEM_APPS=(
     'org.gnome.Settings.desktop'
 )
 
-# Source the web apps configuration if available
-WEBAPPS_CONFIG="$(dirname "$0")/../web2app/config.sh"
-if [ -f "$WEBAPPS_CONFIG" ]; then
-    # shellcheck source=/dev/null
-    source "$WEBAPPS_CONFIG"
-    
-    # Add web apps from config if they exist
-    for app in "${!WEB_APPS[@]}"; do
-        desktop_file="$app.desktop"
-        if [ -f "$HOME/.local/share/applications/$desktop_file" ]; then
-            SYSTEM_APPS+=("$desktop_file")
-            log_info "Adding web app to favorites: $app"
-        fi
-    done
-else
-    log_warn "Web apps configuration not found at $WEBAPPS_CONFIG"
-fi
-
 # Get current favorites to preserve any manually added apps
 CURRENT_FAVORITES=$(gsettings get org.gnome.shell favorite-apps | tr -d '[]' | tr ',' '\n' | tr -d "' " | grep -v '^$')
 
@@ -409,8 +391,7 @@ ALL_FAVORITES=("${SYSTEM_APPS[@]}")
 while IFS= read -r fav; do
     # Only keep manually added favorites that aren't in our system apps
     # and aren't web apps (we handle those above)
-    if ! array_contains "$fav" "${SYSTEM_APPS[@]}" &&
-       [[ ! "$fav" =~ ^(WhatsApp|GMail|GCal|ChatGPT|Claude|Gemini|Grok)\.desktop$ ]]; then
+    if ! array_contains "$fav" "${SYSTEM_APPS[@]}"; then
         ALL_FAVORITES+=("$fav")
         log_info "Preserving manually added favorite: $fav"
     fi
