@@ -102,7 +102,7 @@ configure_mcps() {
     local linear_config
     linear_config="$(jq -n \
         --arg key "$linear_key" \
-        '{command:"npx",args:["-y","@linear/mcp-server"],env:{LINEAR_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","linear-mcp-server"],env:{LINEAR_API_KEY:$key}}')"
 
     try_add_mcp_all "linear" "$linear_config"
 
@@ -117,12 +117,12 @@ configure_mcps() {
     local notion_config
     notion_config="$(jq -n \
         --arg key "$notion_key" \
-        '{command:"npx",args:["-y","@notionhq/notion-mcp-server"],env:{NOTION_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","@notionhq/notion-mcp-server"],env:{NOTION_TOKEN:$key}}')"
 
     try_add_mcp_all "notion" "$notion_config"
 
     if [[ -z "$notion_key" ]]; then
-        log_warn "Notion MCP: fill in NOTION_API_KEY in $CLAUDE_JSON and $CODEX_JSON"
+        log_warn "Notion MCP: fill in NOTION_TOKEN in $CLAUDE_JSON and $CODEX_JSON"
         log_warn "Get your key at: https://www.notion.so/profile/integrations"
     fi
 
@@ -132,12 +132,12 @@ configure_mcps() {
     local miro_config
     miro_config="$(jq -n \
         --arg key "$miro_key" \
-        '{command:"npx",args:["-y","@mirohq/miro-mcp"],env:{MIRO_API_KEY:$key}}')"
+        '{command:"npx",args:["-y","@k-jarzyna/mcp-miro"],env:{MIRO_ACCESS_TOKEN:$key}}')"
 
     try_add_mcp_all "miro" "$miro_config"
 
     if [[ -z "$miro_key" ]]; then
-        log_warn "Miro MCP: fill in MIRO_API_KEY in $CLAUDE_JSON and $CODEX_JSON"
+        log_warn "Miro MCP: fill in MIRO_ACCESS_TOKEN in $CLAUDE_JSON and $CODEX_JSON"
         log_warn "Get your key at: https://miro.com/app/settings/user-profile/apps"
     fi
 

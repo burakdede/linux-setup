@@ -473,6 +473,30 @@ class BootstrapRepoTests(unittest.TestCase):
                     servers["playwright"],
                     {"command": "npx", "args": ["-y", "@playwright/mcp"]},
                 )
+                self.assertEqual(
+                    servers["linear"],
+                    {
+                        "command": "npx",
+                        "args": ["-y", "linear-mcp-server"],
+                        "env": {"LINEAR_API_KEY": ""},
+                    },
+                )
+                self.assertEqual(
+                    servers["notion"],
+                    {
+                        "command": "npx",
+                        "args": ["-y", "@notionhq/notion-mcp-server"],
+                        "env": {"NOTION_TOKEN": ""},
+                    },
+                )
+                self.assertEqual(
+                    servers["miro"],
+                    {
+                        "command": "npx",
+                        "args": ["-y", "@k-jarzyna/mcp-miro"],
+                        "env": {"MIRO_ACCESS_TOKEN": ""},
+                    },
+                )
 
 
 if __name__ == "__main__":

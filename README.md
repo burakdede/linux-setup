@@ -112,7 +112,7 @@ LINUX_SETUP_UPGRADE=1 ./run.sh --only system
 
 The `agents` step writes MCP configuration to `~/.claude.json` (Claude Code) and `~/.openai/mcp.json` (Codex).
 
-Token-gated MCPs (Linear, Notion, Miro) are skipped gracefully if no key is found — they never block installation. Fill them in manually after bootstrap:
+Token-gated MCPs (Linear, Notion, Miro) are written into both agent configs but are not preinstalled as global packages, so they never block bootstrap. They will be fetched on first use via `npx -y`. Fill in the tokens manually after bootstrap:
 ```bash
 # Example for Claude Code
 jq '.mcpServers.linear.env.LINEAR_API_KEY = "your-key"' ~/.claude.json | sponge ~/.claude.json

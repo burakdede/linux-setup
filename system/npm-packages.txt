@@ -10,6 +10,3 @@ prettier
 @modelcontextprotocol/server-memory
 @modelcontextprotocol/server-sequential-thinking
 @playwright/mcp
-@linear/mcp-server
-@notionhq/notion-mcp-server
-@mirohq/miro-mcp
