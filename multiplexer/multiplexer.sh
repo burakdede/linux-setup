@@ -41,7 +41,7 @@ ensure_tmux_config() {
         log_info "Created ~/.tmux.conf shim pointing to $xdg_conf"
     else
         if ! grep -Fq "$shim_line" "$shim"; then
-            log_info "~/.tmux.conf already exists; not overwriting."
+            log_info "$HOME/.tmux.conf already exists; not overwriting."
         fi
     fi
 
