@@ -129,3 +129,8 @@
 	tagl = tag -l
 [credential]
     helper = cache --timeout=31536000
+
+# Machine-local identity and overrides — not committed to the repo.
+# configure/configure.sh writes your name/email here during bootstrap.
+[include]
+    path = ~/.gitconfig.local

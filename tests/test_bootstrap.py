@@ -75,6 +75,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "editor/editor.sh",
             "multiplexer/multiplexer.sh",
             "scripts/verify-install.sh",
+            "configure/configure.sh",
         ]
         result = self.run_cmd(["bash", "-n", *scripts])
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -100,6 +101,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "editor/editor.sh",
             "multiplexer/multiplexer.sh",
             "scripts/verify-install.sh",
+            "configure/configure.sh",
             "dotfiles/.bash_aliases",
             "dotfiles/.zshenv",
         ]
@@ -522,6 +524,60 @@ class BootstrapRepoTests(unittest.TestCase):
                     },
                 )
 
+
+    def test_configure_script_skips_in_non_interactive_env(self):
+        """configure.sh must exit 0 and not block when stdin is not a TTY."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            env = os.environ.copy()
+            env["HOME"] = tmp_dir
+            result = self.run_cmd(["bash", "configure/configure.sh"], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            # Should not have written a .gitconfig.local (nothing to prompt for)
+            self.assertFalse((Path(tmp_dir) / ".gitconfig.local").exists())
+
+    def test_configure_writes_gitconfig_local(self):
+        """configure.sh writes name+email to ~/.gitconfig.local, not ~/.gitconfig."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            # Simulate interactive input via stdin
+            user_input = "Test User\ntest@example.com\n"
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                is_interactive() {{ return 0; }}
+                log_info() {{ :; }}
+                log_success() {{ :; }}
+                log_warn() {{ :; }}
+                echo_header() {{ :; }}
+                HOME="{tmp_dir}"
+                LOCAL_GITCONFIG="$HOME/.gitconfig.local"
+                source "{REPO_ROOT / 'configure' / 'configure.sh'}" 2>/dev/null || true
+                configure_git_identity
+                """
+            )
+            result = subprocess.run(
+                ["bash", "-lc", command],
+                cwd=REPO_ROOT,
+                input=user_input,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            local_cfg = tmp_path / ".gitconfig.local"
+            self.assertTrue(local_cfg.exists(), ".gitconfig.local must be created")
+            content = local_cfg.read_text(encoding="utf-8")
+            self.assertIn("Test User", content)
+            self.assertIn("test@example.com", content)
+            # Must NOT have written to the repo's .gitconfig
+            repo_gitconfig = REPO_ROOT / "dotfiles" / ".gitconfig"
+            self.assertNotIn("Test User", repo_gitconfig.read_text(encoding="utf-8"))
+
+    def test_gitconfig_includes_local_override(self):
+        """dotfiles/.gitconfig must include ~/.gitconfig.local."""
+        gitconfig = (REPO_ROOT / "dotfiles" / ".gitconfig").read_text(encoding="utf-8")
+        self.assertIn(".gitconfig.local", gitconfig)
+        self.assertIn("[include]", gitconfig)
 
     def test_run_verify_flag_invokes_verify_script(self):
         """run.sh --verify must run verify-install.sh without installing anything."""

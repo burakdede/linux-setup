@@ -26,6 +26,7 @@ Options:
 Valid STEP values:
   system          APT packages, Docker, runtimes (mise, Rust, Go, Python)
   dotfiles        Symlink config files into $HOME
+  configure       Interactive prompts: git identity  [safe to skip in CI]
   terminal        WezTerm  [depends: system]
   shell           Zsh      [depends: system]
   editor          Neovim   [depends: system]
@@ -135,6 +136,7 @@ main() {
     local -a steps=(
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
         "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
+        "configure|$ROOT_DIR/configure/configure.sh|Interactive configuration"
         "terminal|$ROOT_DIR/terminal/terminal.sh|WezTerm terminal emulator"
         "shell|$ROOT_DIR/shell/shell.sh|Zsh shell"
         "editor|$ROOT_DIR/editor/editor.sh|Neovim editor"
