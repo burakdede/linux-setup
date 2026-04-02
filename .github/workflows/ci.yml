@@ -45,6 +45,7 @@ jobs:
           LINUX_SETUP_SKIP_SNAPS: "1"
           LINUX_SETUP_SKIP_UFW: "1"
           DEBIAN_FRONTEND: noninteractive
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/smoke-system.sh
 
       - name: Verify installed commands

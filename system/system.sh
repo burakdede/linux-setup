@@ -166,7 +166,23 @@ download_latest_release_asset() {
     local asset_pattern="$2"
     local metadata_file="$3"
 
-    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" -o "$metadata_file"
+    # Pass GITHUB_TOKEN when available to raise rate limit from 60 to 1000 req/hour.
+    local -a auth_header=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        auth_header=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    fi
+
+    # Use --retry so transient network errors don't abort the bootstrap.
+    # --fail-with-body (-f) is not used here so the response body is captured
+    # even on 4xx/5xx — the jq guard below handles API error payloads.
+    if ! curl -sSL --retry 3 --retry-delay 2 \
+            "${auth_header[@]}" \
+            "https://api.github.com/repos/${repo}/releases/latest" \
+            -o "$metadata_file"; then
+        log_warn "Failed to fetch release metadata for ${repo} after retries."
+        echo ""
+        return 0
+    fi
 
     # Detect GitHub API error responses (rate limit, not found, etc.)
     if jq -e '.message' "$metadata_file" &>/dev/null; then
@@ -260,7 +276,7 @@ install_uv() {
         return 0
     fi
 
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    curl -LsSf --retry 3 --retry-delay 2 https://astral.sh/uv/install.sh | sh
 }
 
 install_uv_tools() {
