@@ -395,6 +395,55 @@ install_npm_clis() {
     done < "$NPM_PACKAGES_FILE"
 }
 
+install_nerd_fonts() {
+    echo_header "JetBrains Mono Nerd Font"
+
+    local fonts_dir="$HOME/.local/share/fonts"
+    local marker="$fonts_dir/JetBrainsMonoNerdFont-Regular.ttf"
+
+    if [[ -f "$marker" ]] && ! upgrade_enabled; then
+        log_info "JetBrains Mono Nerd Font is already installed."
+        return 0
+    fi
+
+    local want="${NERD_FONTS_VERSION:-}"
+    local temp_dir zip_path download_url
+    temp_dir="$(mktemp -d)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '$temp_dir'" RETURN
+
+    if [[ -n "$want" ]]; then
+        download_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v${want}/JetBrainsMono.zip"
+        log_info "Downloading JetBrains Mono Nerd Font v${want} (pinned)..."
+    else
+        log_info "Fetching latest Nerd Fonts release metadata..."
+        local metadata_file="$temp_dir/release.json"
+        curl -fsSL "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" \
+            -o "$metadata_file"
+        if jq -e '.message' "$metadata_file" &>/dev/null; then
+            log_warn "GitHub API error for nerd-fonts. Skipping fonts."
+            return 0
+        fi
+        download_url="$(jq -r \
+            '.assets[] | select(.name == "JetBrainsMono.zip") | .browser_download_url' \
+            "$metadata_file" | head -n1)"
+    fi
+
+    if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+        log_warn "Could not resolve Nerd Fonts download URL. Skipping."
+        return 0
+    fi
+
+    zip_path="$temp_dir/JetBrainsMono.zip"
+    curl -fsSL "$download_url" -o "$zip_path"
+
+    mkdir -p "$fonts_dir"
+    unzip -o -q "$zip_path" "*.ttf" -d "$fonts_dir"
+    fc-cache -f "$fonts_dir"
+    rm -rf "$temp_dir"
+    log_success "JetBrains Mono Nerd Font installed to $fonts_dir"
+}
+
 main() {
     check_root
     ensure_sudo
@@ -452,6 +501,10 @@ main() {
 
     if ! should_skip_step UFW; then
         setup_ufw
+    fi
+
+    if ! should_skip_step FONTS; then
+        install_nerd_fonts
     fi
 
     echo_header "System bootstrap complete"

@@ -141,7 +141,8 @@ section "Terminal"
 check_cmd_optional wezterm "WezTerm"
 
 section "Shell"
-check_cmd zsh "zsh"
+check_cmd zsh      "zsh"
+check_cmd starship "starship prompt"
 check_default_shell
 
 section "Editor"

@@ -43,6 +43,7 @@ base_commands=(
     prettier
     zsh
     tmux
+    starship
 )
 
 for cmd in "${base_commands[@]}"; do
