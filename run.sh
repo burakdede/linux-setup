@@ -25,6 +25,10 @@ Options:
 Valid STEP values:
   system
   dotfiles
+  terminal
+  shell
+  editor
+  multiplexer
   sdk
   agents
   git
@@ -105,6 +109,10 @@ main() {
     local -a steps=(
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
         "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
+        "terminal|$ROOT_DIR/terminal/terminal.sh|WezTerm terminal emulator"
+        "shell|$ROOT_DIR/shell/shell.sh|Zsh shell"
+        "editor|$ROOT_DIR/editor/editor.sh|Neovim editor"
+        "multiplexer|$ROOT_DIR/multiplexer/multiplexer.sh|Tmux multiplexer"
         "sdk|$ROOT_DIR/sdk/sdk.sh|SDKMAN toolchain"
         "agents|$ROOT_DIR/agents/agents.sh|Coding agent MCP configuration"
     )
