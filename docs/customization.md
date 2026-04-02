@@ -1,0 +1,98 @@
+# Customization
+
+## Philosophy
+
+This repository is usable as-is, but it is also meant to be easy to adapt. Customization should mostly happen in manifests, version pins, and optional modules rather than by rewriting orchestration logic.
+
+## Skip Flags
+
+Any major install step can be skipped with `LINUX_SETUP_SKIP_<STEP>=1`.
+
+Example:
+
+```bash
+LINUX_SETUP_SKIP_DOCKER=1 LINUX_SETUP_SKIP_CHROME=1 ./run.sh
+```
+
+Available skip flags:
+
+| Variable | Skips |
+|---|---|
+| `LINUX_SETUP_SKIP_DOCKER` | Docker CLI and Compose plugin |
+| `LINUX_SETUP_SKIP_SNAPS` | All snap packages |
+| `LINUX_SETUP_SKIP_CHROME` | Google Chrome |
+| `LINUX_SETUP_SKIP_GITHUB_RELEASE_TOOLS` | GitHub-release binaries such as `yq`, `eza`, `sd`, `scc`, `starship` |
+| `LINUX_SETUP_SKIP_UV` | `uv` and `uv`-managed tools |
+| `LINUX_SETUP_SKIP_CLAUDE` | Claude Code |
+| `LINUX_SETUP_SKIP_NPM_TOOLS` | npm CLIs and MCP packages |
+| `LINUX_SETUP_SKIP_GO` | Go toolchain via `mise` |
+| `LINUX_SETUP_SKIP_PYTHON` | Python toolchain via `mise` |
+| `LINUX_SETUP_SKIP_RUST` | Rust toolchain via `rustup` |
+| `LINUX_SETUP_SKIP_UFW` | firewall setup |
+| `LINUX_SETUP_SKIP_WEZTERM` | terminal installation in verification and smoke flows |
+| `LINUX_SETUP_SKIP_NEOVIM` | editor installation in verification and smoke flows |
+| `LINUX_SETUP_SKIP_FONTS` | Nerd Fonts installation |
+
+## Optional Modules
+
+These are not part of the non-interactive default path:
+
+- `git`: GitHub SSH setup
+- `settings`: GNOME desktop preferences
+
+They stay opt-in because they are personal or workstation-specific.
+
+## Manifests
+
+Most package decisions live in text manifests:
+
+- `system/apt-packages.txt`
+- `system/snap-packages.txt`
+- `system/github-tools.txt`
+- `system/npm-packages.txt`
+- `system/uv-tools.txt`
+- `sdk/packages.txt`
+
+If you want to tailor the machine, start there first.
+
+## Version Pins
+
+Pinned versions live in [`versions.txt`](/Users/burakdede/Projects/linux-setup/versions.txt).
+
+This is the right place to update:
+
+- `mise`
+- Node
+- Go
+- Python
+- Rust
+- Neovim
+- WezTerm
+- Nerd Fonts
+
+Upgrade flow:
+
+1. Change the version in `versions.txt`.
+2. Rerun the relevant step or `./run.sh`.
+3. Verify with `./run.sh --verify` and `bash scripts/test.sh`.
+4. Commit only after the new pin is stable.
+
+## Dotfiles And Personal Preferences
+
+The repo includes personal dotfiles, but they are installed through a dedicated step so they are easy to replace or fork.
+
+Practical ways to adapt the repo:
+
+- swap the contents of `dotfiles/` with your own
+- keep `system/` mostly generic and move personal preferences into `dotfiles/`, `git/`, and `utils/settings.sh`
+- leave `run.sh` orchestration alone unless the execution order itself needs to change
+
+## Upgrade Behavior
+
+Some installs are intentionally skipped if already present. To force reinstall or refresh during a maintenance pass:
+
+```bash
+LINUX_SETUP_UPGRADE=1 ./run.sh --only system
+```
+
+Use this deliberately. The default behavior favors stability over constant upgrades.

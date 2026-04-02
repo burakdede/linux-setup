@@ -1,23 +1,25 @@
 # Ubuntu Developer Machine Setup
 
-This repository bootstraps a fresh Ubuntu machine for development work with a bias toward maintainable, repeatable setup and strong support for terminal-first coding agents.
+This repository bootstraps an Ubuntu workstation for development with a bias toward repeatability, terminal-first workflows, and coding-agent support.
 
-The default path installs:
-- core agent-oriented Ubuntu packages from `apt`
+It started as a personal machine setup, but the default path is intentionally generic enough to be useful on a fresh Ubuntu developer box without requiring repo-specific edits.
+
+## What You Get
+
+Running the default bootstrap installs a practical base layer for coding work:
+- core Ubuntu packages from `apt`
 - command compatibility symlinks for `fd` and `bat`
-- Google Chrome from its official repository
-- Docker CLI and Compose plugin from Docker's official repository
-- GitHub-release binaries for `yq`, `eza`, `sd`, and `scc`
-- `uv` tools: `mcp-server-fetch`, `pre-commit`, `ruff`, `yamllint`
-- `mise` as the runtime manager, with Node LTS, Go, Python, and Rust
-- terminal coding agents: Codex, Claude Code, Gemini CLI, plus `eslint` and `prettier`
-- firewall baseline: `ufw` (deny incoming, allow outgoing, SSH allowed), `fail2ban`
-- system snapshots: `timeshift`
-- MCP servers for Claude Code and Codex: filesystem, memory, fetch, sequential-thinking, playwright, Linear, Notion, Miro
-- personal dotfiles
+- Google Chrome from the official Google repository
+- Docker CLI and Compose plugin from the official Docker repository
+- selected standalone tools from GitHub releases such as `yq`, `eza`, `sd`, `scc`, and `starship`
+- `uv` plus Python-based developer tools
+- `mise` with pinned Node, Go, and Python toolchains
+- `rustup` with a pinned Rust toolchain
+- terminal coding tools such as Codex, Claude Code, Gemini CLI, `eslint`, and `prettier`
+- dotfiles, shell, editor, terminal, tmux, SDK, and agent configuration steps
 
-Interactive or highly personal steps are opt-in:
-- GitHub SSH setup (prompts for git name + email): `./run.sh --include-git`
+Optional and interactive steps stay opt-in:
+- GitHub SSH setup: `./run.sh --include-git`
 - GNOME desktop customization: `./run.sh --include-settings`
 
 ## Quick Start
@@ -36,123 +38,60 @@ Interactive or highly personal steps are opt-in:
    ```bash
    ./run.sh
    ```
+4. Verify the result:
+   ```bash
+   ./run.sh --verify
+   ```
 
-## What Is Considered Essential
+Run the repository as a normal user with `sudo` access.
 
-This repo treats the following categories as the base layer for coding agents:
-- search and navigation: `rg`, `fd`, `tree`, `fzf`, `eza`
-- file inspection and structured parsing: `bat`, `jq`, `yq`
-- safer text transforms and repo understanding: `sd`, `scc`
-- quality gates: `shellcheck`, `pre-commit`, `ruff`, `yamllint`, `eslint`, `prettier`
-- agent CLIs: `codex`, `claude`, `gemini`
-- runtime management: pinned `mise`, Node, Go, Python, and Rust toolchains, plus `rustup`
+## Common Commands
 
-That keeps the machine optimized for token-efficient codebase work without pulling in every situational devops tool by default.
+Run the full setup:
 
-## Manifests
+```bash
+./run.sh
+```
 
-The bootstrap is organized around manifests so package decisions stay in data instead of shell code:
-- `system/apt-packages.txt`
-- `system/snap-packages.txt`
-- `system/github-tools.txt`
-- `system/npm-packages.txt`
-- `system/uv-tools.txt`
-- `sdk/packages.txt`
-
-## Running Specific Parts
-
-Run only one module:
+Run only specific steps:
 
 ```bash
 ./run.sh --only system
 ./run.sh --only dotfiles
-./run.sh --only sdk
 ./run.sh --only agents
 ```
 
-Include optional modules:
+Include optional steps:
 
 ```bash
 ./run.sh --include-git --include-settings
 ```
 
-## Environment Variables
-
-### Skipping steps
-
-Any major install step can be skipped by setting `LINUX_SETUP_SKIP_<STEP>=1` before running:
+Show available steps:
 
 ```bash
-LINUX_SETUP_SKIP_DOCKER=1 LINUX_SETUP_SKIP_CHROME=1 ./run.sh
+./run.sh --help
 ```
 
-| Variable | Skips |
-|---|---|
-| `LINUX_SETUP_SKIP_DOCKER` | Docker CLI + Compose plugin |
-| `LINUX_SETUP_SKIP_SNAPS` | All snap packages |
-| `LINUX_SETUP_SKIP_CHROME` | Google Chrome |
-| `LINUX_SETUP_SKIP_GITHUB_RELEASE_TOOLS` | `yq`, `eza`, `sd`, `scc` |
-| `LINUX_SETUP_SKIP_UV` | uv + uv tools |
-| `LINUX_SETUP_SKIP_CLAUDE` | Claude Code |
-| `LINUX_SETUP_SKIP_NPM_TOOLS` | npm CLIs and MCP packages |
-| `LINUX_SETUP_SKIP_GO` | Go runtime via mise |
-| `LINUX_SETUP_SKIP_PYTHON` | Python runtime via mise |
-| `LINUX_SETUP_SKIP_RUST` | Rust via rustup |
-| `LINUX_SETUP_SKIP_UFW` | ufw firewall setup |
+## Documentation
 
-### Upgrading GitHub release tools
+The README stays focused on the initial path. More detailed guidance lives under `docs/`:
 
-By default `yq`, `eza`, `sd`, and `scc` are skipped if already installed. To force a reinstall to the latest release:
+- [docs/getting-started.md](/Users/burakdede/Projects/linux-setup/docs/getting-started.md): install flow, step ordering, and verification
+- [docs/customization.md](/Users/burakdede/Projects/linux-setup/docs/customization.md): skip flags, optional modules, manifests, version pins, and personal tailoring
+- [docs/reference.md](/Users/burakdede/Projects/linux-setup/docs/reference.md): installed categories, MCP setup, local gates, CI smoke tests, and operational notes
 
-```bash
-LINUX_SETUP_UPGRADE=1 ./run.sh --only system
-```
+## Design Principles
 
-## MCP Servers
-
-The `agents` step writes MCP configuration to `~/.claude.json` (Claude Code) and `~/.openai/mcp.json` (Codex).
-
-Token-gated MCPs (Linear, Notion, Miro) are written into both agent configs but are not preinstalled as global packages, so they never block bootstrap. They will be fetched on first use via `npx -y`. Fill in the tokens manually after bootstrap:
-```bash
-# Example for Claude Code
-jq '.mcpServers.linear.env.LINEAR_API_KEY = "your-key"' ~/.claude.json | sponge ~/.claude.json
-```
-
-## Local And PR Gates
-
-Install the repository-managed git hooks once:
-
-```bash
-bash scripts/install-hooks.sh
-```
-
-After that:
-- `pre-commit` runs `bash scripts/test.sh`
-- `pre-push` runs `bash scripts/test.sh`
-- GitHub Actions runs the same check on pushes and pull requests
-
-The shared gate lives in [scripts/test.sh](scripts/test.sh).
-
-For a disposable Ubuntu smoke test of the real installer, use:
-
-```bash
-bash scripts/vm-smoke-test.sh
-```
-
-That launches a temporary Multipass VM, copies the repo into it, runs the fast checks, then runs a real `system` bootstrap smoke test inside the guest.
-
-Useful variants:
-
-```bash
-bash scripts/vm-smoke-test.sh --keep
-bash scripts/vm-smoke-test.sh --full
-```
+- Base bootstrap should be non-interactive and rerunnable.
+- Personal preferences should be easy to opt into or replace.
+- Version-sensitive toolchains should be pinned instead of floating to `latest`.
+- Package choices should live in manifests where possible.
+- The machine should be usable for both human terminal workflows and coding agents.
 
 ## Notes
 
-- Run the repo as a normal user with `sudo` access.
-- Dotfiles are backed up before being overwritten.
-- Git identity (name + email) is set interactively during `--include-git` and is not hardcoded.
-- `mise` activation is added to `~/.bashrc` and `.bash_aliases` so future shells can see managed runtimes.
-- `ufw` is enabled during the system step. If you need to open additional ports, do so after bootstrap with `sudo ufw allow <port>`.
-- GNOME settings are intentionally optional because they are workstation-specific and require a desktop session.
+- Dotfiles are backed up before being replaced.
+- `ufw` is enabled during the system step unless you skip it.
+- Git identity is written to `~/.gitconfig.local`, not hardcoded in the repo.
+- Agent configuration is generated locally and may still require filling in your own API tokens.
