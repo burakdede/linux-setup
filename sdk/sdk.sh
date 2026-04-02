@@ -13,9 +13,18 @@ SDKMAN_INIT="$HOME/.sdkman/bin/sdkman-init.sh"
 PACKAGES_FILE="$SCRIPT_DIR/packages.txt"
 
 load_sdkman() {
+    local restore_nounset=0
+
     if [[ -s "$SDKMAN_INIT" ]]; then
+        if [[ -o nounset ]]; then
+            restore_nounset=1
+            set +u
+        fi
         # shellcheck source=/dev/null
         source "$SDKMAN_INIT"
+        if [[ "$restore_nounset" -eq 1 ]]; then
+            set -u
+        fi
         return 0
     fi
 
@@ -25,8 +34,15 @@ load_sdkman() {
     curl -fsSL "https://get.sdkman.io" -o "$tmp_installer"
     bash "$tmp_installer"
     rm -f "$tmp_installer"
+    if [[ -o nounset ]]; then
+        restore_nounset=1
+        set +u
+    fi
     # shellcheck source=/dev/null
     source "$SDKMAN_INIT"
+    if [[ "$restore_nounset" -eq 1 ]]; then
+        set -u
+    fi
 }
 
 install_sdk_packages() {

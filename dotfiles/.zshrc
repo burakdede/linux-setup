@@ -14,6 +14,20 @@ if [[ -x "$HOME/.local/bin/mise" ]]; then
     eval "$("$HOME/.local/bin/mise" activate zsh)"
 fi
 
+# ─── SDKMAN activation ────────────────────────────────────────────────────────
+# sdkman-init.sh is not nounset-safe in all versions; source it defensively.
+if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
+    sdkman_restore_nounset=0
+    if [[ -o nounset ]]; then
+        sdkman_restore_nounset=1
+        set +u
+    fi
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    if [[ "$sdkman_restore_nounset" == "1" ]]; then
+        set -u
+    fi
+fi
+
 # ─── Completion ───────────────────────────────────────────────────────────────
 autoload -Uz compinit
 zmodload zsh/complist
