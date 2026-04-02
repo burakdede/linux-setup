@@ -139,6 +139,31 @@ ensure_line_in_file() {
     fi
 }
 
+load_versions() {
+    local versions_file="${1:-}"
+    # Default: look for versions.txt at repo root (two levels up from utils/)
+    if [[ -z "$versions_file" ]]; then
+        local utils_dir
+        utils_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        versions_file="$utils_dir/../versions.txt"
+    fi
+
+    if [[ ! -f "$versions_file" ]]; then
+        return 0
+    fi
+
+    local line key value
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="$(trim "$line")"
+        [[ -z "$line" ]] && continue
+        key="${line%%=*}"
+        value="${line#*=}"
+        # Export so callers can use them
+        export "$key"="$value"
+    done < "$versions_file"
+}
+
 backup_gnome_settings() {
     local backup_dir="$HOME/.config/gsettings-backup"
     mkdir -p "$backup_dir"

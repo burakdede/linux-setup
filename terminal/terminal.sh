@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # WezTerm terminal emulator installation and configuration.
 #
-# Installs WezTerm from the official GitHub releases (wez/wezterm).
-# Optionally sets WezTerm as the default terminal emulator when a
-# GNOME desktop session is active.
+# Installs the pinned WezTerm release (see versions.txt) from GitHub.
+# Optionally sets WezTerm as the default terminal emulator when a GNOME
+# desktop session is active.
+#
+# Skip:    LINUX_SETUP_SKIP_WEZTERM=1
+# Upgrade: LINUX_SETUP_UPGRADE=1
 
 set -euo pipefail
 
@@ -12,6 +15,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
+
+load_versions
+
+# Default falls back to latest release query if versions.txt doesn't pin one
+WEZTERM_VERSION="${WEZTERM_VERSION:-}"
 
 flag_enabled() {
     local value="${1:-0}"
@@ -31,46 +39,62 @@ upgrade_enabled() {
     flag_enabled "${LINUX_SETUP_UPGRADE:-0}"
 }
 
+installed_wezterm_version() {
+    if command_exists wezterm; then
+        wezterm --version 2>/dev/null | awk '{print $2}'
+    fi
+}
+
 install_wezterm() {
     echo_header "WezTerm terminal emulator"
 
-    if command_exists wezterm && ! upgrade_enabled; then
-        log_info "WezTerm is already installed. (set LINUX_SETUP_UPGRADE=1 to upgrade)"
-        return 0
+    local want="${WEZTERM_VERSION:-}"
+    local got
+    got="$(installed_wezterm_version)"
+
+    if [[ -n "$got" ]] && ! upgrade_enabled; then
+        if [[ -z "$want" || "$got" == "$want" ]]; then
+            log_info "WezTerm $got is already installed. (LINUX_SETUP_UPGRADE=1 to reinstall)"
+            return 0
+        fi
+        log_info "Installed: $got  Pinned: $want — reinstalling to match pin."
     fi
 
-    local temp_dir metadata_file download_url deb_path
+    local temp_dir deb_path download_url
     temp_dir="$(mktemp -d)"
     # shellcheck disable=SC2064
     trap "rm -rf '$temp_dir'" RETURN
-    metadata_file="$temp_dir/release.json"
 
-    log_info "Fetching latest WezTerm release metadata..."
-    curl -fsSL "https://api.github.com/repos/wez/wezterm/releases/latest" \
-        -o "$metadata_file"
-
-    if jq -e '.message' "$metadata_file" &>/dev/null; then
-        log_warn "GitHub API error: $(jq -r '.message' "$metadata_file"). Skipping WezTerm."
-        return 0
-    fi
-
-    # Prefer Ubuntu 24.04 .deb; fall back to any .deb asset
-    download_url="$(jq -r \
-        '.assets[] | select(.name | test("Ubuntu24\\.04\\.deb$")) | .browser_download_url' \
-        "$metadata_file" | head -n1)"
-
-    if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+    if [[ -n "$want" ]]; then
+        # Construct the direct asset URL from the pinned version tag.
+        # WezTerm tags look like: 20240203-110809-5046fc22
+        local asset="WezTerm-${want}.Ubuntu24.04.deb"
+        download_url="https://github.com/wez/wezterm/releases/download/${want}/${asset}"
+        log_info "Downloading WezTerm ${want} (pinned)..."
+    else
+        log_info "No version pinned — fetching latest WezTerm release metadata..."
+        local metadata_file="$temp_dir/release.json"
+        curl -fsSL "https://api.github.com/repos/wez/wezterm/releases/latest" \
+            -o "$metadata_file"
+        if jq -e '.message' "$metadata_file" &>/dev/null; then
+            log_warn "GitHub API error: $(jq -r '.message' "$metadata_file"). Skipping WezTerm."
+            return 0
+        fi
         download_url="$(jq -r \
-            '.assets[] | select(.name | test("\\.deb$")) | .browser_download_url' \
+            '.assets[] | select(.name | test("Ubuntu24\\.04\\.deb$")) | .browser_download_url' \
             "$metadata_file" | head -n1)"
+        if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+            download_url="$(jq -r \
+                '.assets[] | select(.name | test("\\.deb$")) | .browser_download_url' \
+                "$metadata_file" | head -n1)"
+        fi
     fi
 
     if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-        log_warn "Could not find a WezTerm .deb release asset. Skipping."
+        log_warn "Could not resolve WezTerm download URL. Skipping."
         return 0
     fi
 
-    log_info "Downloading WezTerm from: $download_url"
     deb_path="$temp_dir/wezterm.deb"
     curl -fsSL "$download_url" -o "$deb_path"
     sudo_run apt-get install -y "$deb_path"
@@ -93,7 +117,6 @@ set_default_terminal() {
     gsettings set org.gnome.desktop.default-applications.terminal exec 'wezterm'
     gsettings set org.gnome.desktop.default-applications.terminal exec-arg ''
 
-    # Also register with update-alternatives if available
     if command_exists update-alternatives && command_exists wezterm; then
         local wezterm_path
         wezterm_path="$(command -v wezterm)"

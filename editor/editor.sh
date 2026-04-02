@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Neovim installation and system integration.
 #
-# Downloads the latest stable Neovim AppImage from GitHub (neovim/neovim),
+# Downloads the pinned stable Neovim release (see versions.txt) from GitHub,
 # installs it to /usr/local/bin/nvim, and registers it with update-alternatives
 # so that `vim`, `vi`, and `editor` all resolve to nvim.
+#
+# Skip:    LINUX_SETUP_SKIP_NEOVIM=1
+# Upgrade: LINUX_SETUP_UPGRADE=1  (re-installs even if nvim is present)
 
 set -euo pipefail
 
@@ -13,8 +16,12 @@ source "$SCRIPT_DIR/../utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
 
+load_versions
+
 NVIM_INSTALL_DIR="/usr/local"
 NVIM_BIN="$NVIM_INSTALL_DIR/bin/nvim"
+# Default falls back to latest if versions.txt doesn't pin one
+NEOVIM_VERSION="${NEOVIM_VERSION:-}"
 
 flag_enabled() {
     local value="${1:-0}"
@@ -34,45 +41,62 @@ upgrade_enabled() {
     flag_enabled "${LINUX_SETUP_UPGRADE:-0}"
 }
 
+installed_nvim_version() {
+    if command_exists nvim; then
+        nvim --version 2>/dev/null | head -n1 | awk '{print $2}' | sed 's/^v//'
+    fi
+}
+
 install_neovim() {
     echo_header "Neovim"
 
-    if command_exists nvim && ! upgrade_enabled; then
-        log_info "Neovim is already installed. (set LINUX_SETUP_UPGRADE=1 to upgrade)"
-        return 0
+    local want="${NEOVIM_VERSION:-}"
+    local got
+    got="$(installed_nvim_version)"
+
+    if [[ -n "$got" ]] && ! upgrade_enabled; then
+        if [[ -z "$want" || "$got" == "$want" ]]; then
+            log_info "Neovim $got is already installed. (LINUX_SETUP_UPGRADE=1 to reinstall)"
+            return 0
+        fi
+        log_info "Installed: $got  Pinned: $want — reinstalling to match pin."
     fi
 
-    # Install build dependencies needed by some Neovim plugins (tree-sitter parsers, etc.)
     log_info "Installing Neovim build dependencies..."
     sudo_run apt-get install -y --no-install-recommends \
         build-essential cmake gettext ninja-build unzip curl
 
-    local temp_dir metadata_file download_url archive_path
+    local temp_dir download_url archive_path
     temp_dir="$(mktemp -d)"
     # shellcheck disable=SC2064
     trap "rm -rf '$temp_dir'" RETURN
-    metadata_file="$temp_dir/release.json"
 
-    log_info "Fetching latest stable Neovim release metadata..."
-    curl -fsSL "https://api.github.com/repos/neovim/neovim/releases/latest" \
-        -o "$metadata_file"
-
-    if jq -e '.message' "$metadata_file" &>/dev/null; then
-        log_warn "GitHub API error: $(jq -r '.message' "$metadata_file"). Skipping Neovim."
-        return 0
+    # Build the asset URL directly from the pinned version (no API call needed).
+    # Falls back to querying the GitHub API for the latest release when no version is pinned.
+    if [[ -n "$want" ]]; then
+        local tag="v${want}"
+        local asset="nvim-linux-x86_64.tar.gz"
+        download_url="https://github.com/neovim/neovim/releases/download/${tag}/${asset}"
+        log_info "Downloading Neovim ${want} (pinned)..."
+    else
+        log_info "No version pinned — fetching latest Neovim release metadata..."
+        local metadata_file="$temp_dir/release.json"
+        curl -fsSL "https://api.github.com/repos/neovim/neovim/releases/latest" \
+            -o "$metadata_file"
+        if jq -e '.message' "$metadata_file" &>/dev/null; then
+            log_warn "GitHub API error: $(jq -r '.message' "$metadata_file"). Skipping."
+            return 0
+        fi
+        download_url="$(jq -r \
+            '.assets[] | select(.name | test("nvim-linux-x86_64\\.tar\\.gz$")) | .browser_download_url' \
+            "$metadata_file" | head -n1)"
     fi
-
-    # Prefer pre-built linux-x86_64 tarball; it unpacks to a self-contained tree.
-    download_url="$(jq -r \
-        '.assets[] | select(.name | test("nvim-linux-x86_64\\.tar\\.gz$")) | .browser_download_url' \
-        "$metadata_file" | head -n1)"
 
     if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-        log_warn "Could not find nvim-linux-x86_64.tar.gz release asset. Skipping."
+        log_warn "Could not resolve Neovim download URL. Skipping."
         return 0
     fi
 
-    log_info "Downloading Neovim from: $download_url"
     archive_path="$temp_dir/nvim.tar.gz"
     curl -fsSL "$download_url" -o "$archive_path"
 
@@ -86,14 +110,13 @@ install_neovim() {
         return 0
     fi
 
-    # Copy bin, lib, share into /usr/local (merges cleanly)
     sudo_run cp -rf "$extracted_dir/bin/."   "$NVIM_INSTALL_DIR/bin/"
     sudo_run cp -rf "$extracted_dir/lib/."   "$NVIM_INSTALL_DIR/lib/"   2>/dev/null || true
     sudo_run cp -rf "$extracted_dir/share/." "$NVIM_INSTALL_DIR/share/" 2>/dev/null || true
     sudo_run chmod 0755 "$NVIM_BIN"
 
     rm -rf "$temp_dir"
-    log_success "Neovim installed to $NVIM_BIN"
+    log_success "Neovim $(installed_nvim_version) installed to $NVIM_BIN"
 }
 
 register_alternatives() {
@@ -104,17 +127,14 @@ register_alternatives() {
 
     log_info "Registering Neovim with update-alternatives..."
 
-    # vim
-    sudo_run update-alternatives --install /usr/bin/vim   vim   "$NVIM_BIN" 60
-    sudo_run update-alternatives --set            vim           "$NVIM_BIN"
+    sudo_run update-alternatives --install /usr/bin/vim    vim    "$NVIM_BIN" 60
+    sudo_run update-alternatives --set             vim            "$NVIM_BIN"
 
-    # vi
-    sudo_run update-alternatives --install /usr/bin/vi    vi    "$NVIM_BIN" 60
-    sudo_run update-alternatives --set            vi            "$NVIM_BIN"
+    sudo_run update-alternatives --install /usr/bin/vi     vi     "$NVIM_BIN" 60
+    sudo_run update-alternatives --set             vi             "$NVIM_BIN"
 
-    # editor (used by git, crontab, etc.)
     sudo_run update-alternatives --install /usr/bin/editor editor "$NVIM_BIN" 60
-    sudo_run update-alternatives --set              editor         "$NVIM_BIN"
+    sudo_run update-alternatives --set             editor         "$NVIM_BIN"
 
     log_success "vim, vi, and editor now resolve to nvim."
 }

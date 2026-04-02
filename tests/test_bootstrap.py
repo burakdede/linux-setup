@@ -521,6 +521,45 @@ class BootstrapRepoTests(unittest.TestCase):
                 )
 
 
+    def test_versions_file_is_well_formed(self):
+        """versions.txt must parse as KEY=value lines with no blanks in values."""
+        versions_file = REPO_ROOT / "versions.txt"
+        self.assertTrue(versions_file.exists(), "versions.txt must exist")
+        required = {"NEOVIM_VERSION", "WEZTERM_VERSION", "MISE_VERSION"}
+        found = {}
+        for raw in versions_file.read_text(encoding="utf-8").splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            self.assertIn("=", line, f"versions.txt line has no '=': {line!r}")
+            key, _, val = line.partition("=")
+            self.assertTrue(key.strip(), f"Empty key in versions.txt: {line!r}")
+            self.assertTrue(val.strip(), f"Empty value in versions.txt: {line!r}")
+            found[key.strip()] = val.strip()
+        for key in required:
+            self.assertIn(key, found, f"{key} missing from versions.txt")
+
+    def test_load_versions_exports_variables(self):
+        """load_versions() in utils.sh must export pinned version variables."""
+        versions_file = REPO_ROOT / "versions.txt"
+        command = textwrap.dedent(
+            f"""\
+            source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+            load_versions "{versions_file}"
+            echo "NEOVIM=$NEOVIM_VERSION"
+            echo "WEZTERM=$WEZTERM_VERSION"
+            """
+        )
+        result = self.run_cmd(["bash", "-lc", command])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("NEOVIM=", result.stdout)
+        self.assertIn("WEZTERM=", result.stdout)
+        # Values must be non-empty
+        for line in result.stdout.splitlines():
+            if "=" in line:
+                _, _, val = line.partition("=")
+                self.assertTrue(val.strip(), f"Empty version value: {line!r}")
+
     def test_wezterm_config_is_valid_lua(self):
         """WezTerm config file must exist and be parseable as Lua if luac is available."""
         config_path = REPO_ROOT / "dotfiles" / ".config" / "wezterm" / "wezterm.lua"

@@ -9,12 +9,15 @@ source "$SCRIPT_DIR/../utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
 
+load_versions
+
 APT_PACKAGES_FILE="$SCRIPT_DIR/apt-packages.txt"
 SNAP_PACKAGES_FILE="$SCRIPT_DIR/snap-packages.txt"
 NPM_PACKAGES_FILE="$SCRIPT_DIR/npm-packages.txt"
 UV_TOOLS_FILE="$SCRIPT_DIR/uv-tools.txt"
 GITHUB_TOOLS_FILE="$SCRIPT_DIR/github-tools.txt"
 MISE_BIN="$HOME/.local/bin/mise"
+MISE_VERSION="${MISE_VERSION:-}"   # loaded from versions.txt by load_versions below
 
 flag_enabled() {
     local value="${1:-0}"
@@ -293,8 +296,30 @@ install_claude_code() {
 install_mise() {
     echo_header "mise"
 
-    if [[ ! -x "$MISE_BIN" ]]; then
-        curl -fsSL https://mise.run | sh
+    local want="${MISE_VERSION:-}"
+    local got=""
+    if [[ -x "$MISE_BIN" ]]; then
+        got="$("$MISE_BIN" --version 2>/dev/null | awk '{print $1}')"
+    fi
+
+    if [[ -n "$got" ]] && ! upgrade_enabled; then
+        if [[ -z "$want" || "$got" == "$want" ]]; then
+            log_info "mise $got is already installed."
+        else
+            log_info "mise installed: $got  pinned: $want — reinstalling."
+            if [[ -n "$want" ]]; then
+                MISE_VERSION="$want" curl -fsSL https://mise.run | sh
+            else
+                curl -fsSL https://mise.run | sh
+            fi
+        fi
+    elif [[ ! -x "$MISE_BIN" ]]; then
+        if [[ -n "$want" ]]; then
+            log_info "Installing mise $want (pinned)..."
+            MISE_VERSION="$want" curl -fsSL https://mise.run | sh
+        else
+            curl -fsSL https://mise.run | sh
+        fi
     fi
 
     local mise_activation_line

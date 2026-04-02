@@ -1,0 +1,16 @@
+# Tool version pins
+#
+# Format: TOOL_NAME=version
+#
+# These are the last known-good stable releases.  To upgrade a tool:
+#   1. Update the version here.
+#   2. Set LINUX_SETUP_UPGRADE=1 and re-run the relevant step.
+#   3. Verify, then commit the bump.
+#
+# Neovim releases:  https://github.com/neovim/neovim/releases
+# WezTerm releases: https://github.com/wez/wezterm/releases
+# mise releases:    https://github.com/jdx/mise/releases
+
+NEOVIM_VERSION=0.10.4
+WEZTERM_VERSION=20240203-110809-5046fc22
+MISE_VERSION=2025.1.10
