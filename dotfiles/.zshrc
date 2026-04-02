@@ -95,14 +95,27 @@ ZSH_PROFILE="${ZSH_PROFILE:-${LINUX_SETUP_ZSH_PROFILE:-antidote-p10k}}"
 load_antidote_p10k() {
     local antidote_home="${ANTIDOTE_HOME:-$HOME/.local/share/antidote}"
     local zsh_plugins="${ZDOTDIR:-$HOME}/.zsh_plugins"
+    local zsh_plugins_clean="${zsh_plugins}.clean.txt"
+    local needs_rebuild=0
 
     if [[ -d "$antidote_home/functions" ]]; then
         fpath=("$antidote_home/functions" $fpath)
         autoload -Uz antidote
 
         if [[ -f "${zsh_plugins}.txt" ]]; then
-            if [[ ! "${zsh_plugins}.zsh" -nt "${zsh_plugins}.txt" ]]; then
-                antidote bundle < "${zsh_plugins}.txt" >| "${zsh_plugins}.zsh"
+            # Rebuild when spec changed, bundle missing, or bundle is poisoned by warning output.
+            if [[ ! -f "${zsh_plugins}.zsh" ]] || [[ ! "${zsh_plugins}.zsh" -nt "${zsh_plugins}.txt" ]]; then
+                needs_rebuild=1
+            elif grep -Eq '^[[:space:]]*warning:' "${zsh_plugins}.zsh" 2>/dev/null; then
+                needs_rebuild=1
+            fi
+
+            if [[ "$needs_rebuild" == "1" ]]; then
+                # Antidote may emit warning lines when comments are present in spec.
+                # Build from a comment-free spec and strip any stray warning output.
+                grep -Ev '^[[:space:]]*(#|$)' "${zsh_plugins}.txt" >| "$zsh_plugins_clean"
+                antidote bundle < "$zsh_plugins_clean" | grep -Ev '^[[:space:]]*warning:' >| "${zsh_plugins}.zsh"
+                rm -f "$zsh_plugins_clean"
             fi
             source "${zsh_plugins}.zsh"
         fi

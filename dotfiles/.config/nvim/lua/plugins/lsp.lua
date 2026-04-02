@@ -46,7 +46,7 @@ return {
             local servers = {
                 -- Python
                 pyright        = {},
-                ruff_lsp       = {},      -- fast linting/formatting via ruff
+                ruff           = {},      -- fast linting/formatting via ruff
 
                 -- Go
                 gopls          = {
@@ -259,7 +259,13 @@ return {
         build  = ":TSUpdate",
         event  = { "BufReadPre", "BufNewFile" },
         config = function()
-            require("nvim-treesitter.configs").setup({
+            local ok, ts_configs = pcall(require, "nvim-treesitter.configs")
+            if not ok then
+                vim.notify("nvim-treesitter is not available yet; run :Lazy sync", vim.log.levels.WARN)
+                return
+            end
+
+            ts_configs.setup({
                 -- Parsers that are always installed
                 ensure_installed = {
                     "bash", "c", "cmake", "css", "diff",

@@ -11,7 +11,7 @@
 # WezTerm releases: https://github.com/wez/wezterm/releases
 # mise releases:    https://github.com/jdx/mise/releases
 
-NEOVIM_VERSION=0.10.4
+NEOVIM_VERSION=0.11.5
 WEZTERM_VERSION=latest
 MISE_VERSION=2025.11.11
 NODE_VERSION=24.14.1

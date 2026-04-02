@@ -51,6 +51,9 @@ install_neovim() {
     echo_header "Neovim"
 
     local want="${NEOVIM_VERSION:-}"
+    if [[ "$want" == "latest" ]]; then
+        want=""
+    fi
     local got
     got="$(installed_nvim_version)"
 

@@ -16,6 +16,8 @@ config.default_prog = { login_shell, "-l" }
 -- ─── Terminal colour support ──────────────────────────────────────────────────
 -- Report full WezTerm capabilities so neovim and tmux render colours correctly.
 config.term = "wezterm"
+-- Avoid key-repeat/input issues observed on some GNOME/Wayland setups.
+config.enable_kitty_keyboard = false
 
 -- ─── Scrollback ───────────────────────────────────────────────────────────────
 config.scrollback_lines = 10000
