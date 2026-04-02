@@ -23,38 +23,53 @@ Options:
   --help              Show this help text.
 
 Valid STEP values:
-  system
-  dotfiles
-  terminal
-  shell
-  editor
-  multiplexer
-  sdk
-  agents
-  git
-  settings
+  system          APT packages, Docker, runtimes (mise, Rust, Go, Python)
+  dotfiles        Symlink config files into $HOME
+  terminal        WezTerm  [depends: system]
+  shell           Zsh      [depends: system]
+  editor          Neovim   [depends: system]
+  multiplexer     Tmux     [depends: system]
+  sdk             SDKMAN toolchain (Java, Kotlin, …)  [depends: system]
+  agents          Coding agent MCP configuration  [depends: system]
+  git             GitHub SSH key setup (interactive)
+  settings        GNOME desktop preferences (requires desktop session)
+
+Step dependencies:
+  - Run `system` first when bootstrapping a fresh machine; the other steps
+    rely on packages (curl, jq, apt, mise) that system installs.
+  - `editor` (jdtls / Java LSP) needs a JDK — run `sdk` first or install
+    a JDK via another means before opening a Java file in Neovim.
+  - `agents` needs Node (npm) — run `system` so mise installs Node LTS.
 EOF
 }
 
 contains_step() {
     local wanted="$1"
     local step
-
     for step in "${ONLY_STEPS[@]}"; do
         [[ "$step" == "$wanted" ]] && return 0
     done
-
     return 1
 }
 
 should_run_step() {
     local step="$1"
-
     if [[ ${#ONLY_STEPS[@]} -eq 0 ]]; then
         return 0
     fi
-
     contains_step "$step"
+}
+
+# Emit a warning when a dependency step is not in the selected set.
+check_step_deps() {
+    local step="$1"
+    shift
+    local dep
+    for dep in "$@"; do
+        if [[ ${#ONLY_STEPS[@]} -gt 0 ]] && ! contains_step "$dep"; then
+            log_warn "Step '$step' may depend on '$dep' which is not in the selected steps."
+        fi
+    done
 }
 
 run_script() {
@@ -127,6 +142,21 @@ main() {
 
     echo_header "Ubuntu developer machine bootstrap"
     log_info "Optional steps are disabled by default to keep the base bootstrap non-interactive."
+
+    # Warn about unmet dependencies when running with --only
+    if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
+        for step_name in terminal shell editor multiplexer sdk agents; do
+            if contains_step "$step_name"; then
+                check_step_deps "$step_name" system
+            fi
+        done
+        if contains_step editor; then
+            check_step_deps "editor (Java LSP)" sdk
+        fi
+        if contains_step agents; then
+            check_step_deps "agents (npm MCPs)" system
+        fi
+    fi
 
     local total=0
     local record
