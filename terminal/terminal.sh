@@ -103,6 +103,9 @@ install_wezterm() {
     echo_header "WezTerm terminal emulator"
 
     local want="${WEZTERM_VERSION:-}"
+    if [[ "$want" == "latest" ]]; then
+        want=""
+    fi
     local got
     got="$(installed_wezterm_version)"
 
@@ -129,8 +132,8 @@ install_wezterm() {
     fi
 
     if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-        log_warn "Could not resolve WezTerm download URL. Skipping."
-        return 0
+        log_warn "Could not resolve WezTerm download URL. Installation did not run."
+        return 1
     fi
 
     deb_path="$temp_dir/wezterm.deb"
@@ -139,9 +142,15 @@ install_wezterm() {
     sudo_run apt-get install -y "$deb_path"
     rm -rf "$temp_dir"
     log_success "WezTerm installed."
+    return 0
 }
 
 set_default_terminal() {
+    if ! command_exists wezterm; then
+        log_warn "WezTerm binary not found; skipping default terminal configuration."
+        return 0
+    fi
+
     if ! has_desktop_session; then
         log_info "No desktop session active; skipping default terminal configuration."
         return 0
@@ -172,8 +181,16 @@ main() {
     export PATH="$HOME/.local/bin:$PATH"
 
     if ! should_skip_step WEZTERM; then
-        install_wezterm
-        set_default_terminal
+        if install_wezterm; then
+            set_default_terminal
+        else
+            if command_exists wezterm; then
+                log_warn "WezTerm install step failed; keeping existing WezTerm binary and applying default terminal setting."
+                set_default_terminal
+            else
+                log_warn "WezTerm is not installed; default terminal was not changed."
+            fi
+        fi
     else
         log_info "Skipping WezTerm (LINUX_SETUP_SKIP_WEZTERM is set)."
     fi
