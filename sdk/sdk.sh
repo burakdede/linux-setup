@@ -54,6 +54,20 @@ load_sdkman() {
     fi
 }
 
+run_sdk() {
+    local restore_nounset=0
+    if [[ -o nounset ]]; then
+        restore_nounset=1
+        set +u
+    fi
+    sdk "$@"
+    local rc=$?
+    if [[ "$restore_nounset" -eq 1 ]]; then
+        set -u
+    fi
+    return "$rc"
+}
+
 install_sdk_packages() {
     echo_header "SDKMAN packages"
 
@@ -69,14 +83,14 @@ install_sdk_packages() {
         [[ -z "$candidate" ]] && continue
 
         log_info "Installing SDKMAN candidate: $candidate"
-        sdk install "$candidate" || log_warn "Unable to install ${candidate}. Review available versions with 'sdk list ${candidate}'."
+        run_sdk install "$candidate" || log_warn "Unable to install ${candidate}. Review available versions with 'sdk list ${candidate}'."
     done < "$PACKAGES_FILE"
 }
 
 main() {
     load_sdkman
-    sdk selfupdate || true
-    sdk update || true
+    run_sdk selfupdate || true
+    run_sdk update || true
     install_sdk_packages
 
     echo_header "SDKMAN setup complete"

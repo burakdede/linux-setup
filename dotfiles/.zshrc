@@ -26,6 +26,16 @@ if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
     if [[ "$sdkman_restore_nounset" == "1" ]]; then
         set -u
     fi
+
+    # SDKMAN internals are not fully nounset-safe; wrap sdk calls defensively.
+    if typeset -f sdk >/dev/null 2>&1; then
+        functions -c sdk __linux_setup_sdk_inner
+        sdk() {
+            emulate -L zsh
+            set +u
+            __linux_setup_sdk_inner "$@"
+        }
+    fi
 fi
 
 # ─── Completion ───────────────────────────────────────────────────────────────
