@@ -72,6 +72,20 @@ For repository gates:
 bash scripts/test.sh
 ```
 
+Every `run.sh` execution writes a timestamped log by default:
+
+- `~/.local/state/linux-setup/logs/run-YYYYMMDD-HHMMSS.log`
+
+If that location is not writable, `run.sh` automatically falls back to:
+
+- `${TMPDIR:-/tmp}/linux-setup-logs/run-YYYYMMDD-HHMMSS.log`
+
+You can set a custom path explicitly:
+
+```bash
+LINUX_SETUP_LOG_FILE="$HOME/.local/state/linux-setup/logs/my-run.log" ./run.sh
+```
+
 ## After Bootstrap
 
 Typical follow-up actions:

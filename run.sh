@@ -12,6 +12,13 @@ INCLUDE_GIT=1
 INCLUDE_SETTINGS=1
 ONLY_STEPS=()
 VERIFY_ONLY=0
+RUN_TS="$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="${LINUX_SETUP_LOG_FILE:-$HOME/.local/state/linux-setup/logs/run-${RUN_TS}.log}"
+LOGGING_INITIALIZED=0
+LOG_PIPE=""
+LOG_TEE_PID=""
+ORIG_STDOUT_FD=""
+ORIG_STDERR_FD=""
 
 usage() {
     cat <<'EOF'
@@ -93,6 +100,56 @@ run_script() {
     log_success "Completed: ${description}"
 }
 
+init_run_logging() {
+    if [[ "$LOGGING_INITIALIZED" -eq 1 ]]; then
+        return 0
+    fi
+    local requested_log="$LOG_FILE"
+    if ! mkdir -p "$(dirname "$LOG_FILE")" || ! touch "$LOG_FILE"; then
+        LOG_FILE="${TMPDIR:-/tmp}/linux-setup-logs/run-${RUN_TS}.log"
+        if ! mkdir -p "$(dirname "$LOG_FILE")" || ! touch "$LOG_FILE"; then
+            log_warn "Could not create run log at '$requested_log' or fallback '$LOG_FILE'. Continuing without persistent run log."
+            LOG_FILE="$requested_log"
+            LOGGING_INITIALIZED=0
+            return 0
+        fi
+        log_warn "Could not write run log at '$requested_log'. Using fallback log path '$LOG_FILE'."
+    fi
+
+    # Use a named pipe instead of process substitution for wider compatibility.
+    LOG_PIPE="$(mktemp -u "${TMPDIR:-/tmp}/linux-setup-log.XXXXXX")"
+    if mkfifo "$LOG_PIPE"; then
+        exec {ORIG_STDOUT_FD}>&1
+        exec {ORIG_STDERR_FD}>&2
+        tee -a "$LOG_FILE" < "$LOG_PIPE" &
+        LOG_TEE_PID="$!"
+        exec > "$LOG_PIPE" 2>&1
+        LOGGING_INITIALIZED=1
+        return 0
+    fi
+
+    # Fallback: continue without stream duplication if FIFO setup fails.
+    LOGGING_INITIALIZED=0
+}
+
+cleanup_run_logging() {
+    # Restore stdout/stderr first so the FIFO writer closes and tee can exit.
+    if [[ -n "$ORIG_STDOUT_FD" && -n "$ORIG_STDERR_FD" ]]; then
+        exec 1>&"$ORIG_STDOUT_FD" 2>&"$ORIG_STDERR_FD" || true
+        exec {ORIG_STDOUT_FD}>&- || true
+        exec {ORIG_STDERR_FD}>&- || true
+        ORIG_STDOUT_FD=""
+        ORIG_STDERR_FD=""
+    fi
+
+    if [[ -n "$LOG_PIPE" && -p "$LOG_PIPE" ]]; then
+        rm -f "$LOG_PIPE" || true
+    fi
+    if [[ -n "$LOG_TEE_PID" ]]; then
+        wait "$LOG_TEE_PID" 2>/dev/null || true
+    fi
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --include-git)
@@ -131,9 +188,15 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+trap cleanup_run_logging EXIT
+
 main() {
+    init_run_logging
+
     if [[ $VERIFY_ONLY -eq 1 ]]; then
+        log_info "Run log: $LOG_FILE"
         bash "$ROOT_DIR/scripts/verify-install.sh"
+        log_info "Verification log saved to: $LOG_FILE"
         return 0
     fi
 
@@ -179,6 +242,7 @@ main() {
     fi
 
     echo_header "Ubuntu developer machine bootstrap"
+    log_info "Run log: $LOG_FILE"
     log_info "Default run includes all steps; use --skip-git/--skip-settings for non-interactive mode."
     log_info "Display defaults: text-scale=$LINUX_SETUP_TEXT_SCALE cursor-size=$LINUX_SETUP_CURSOR_SIZE"
     log_info "Font defaults: rgba-order=$LINUX_SETUP_FONT_RGBA_ORDER antialias=$LINUX_SETUP_FONT_ANTIALIASING hinting=$LINUX_SETUP_FONT_HINTING"
@@ -235,6 +299,12 @@ main() {
     done
 
     echo_header "Bootstrap complete"
+    log_success "Run log saved to: $LOG_FILE"
+    log_info "Post-install checklist:"
+    log_info "  1. Log out and back in for default-shell/session-level changes."
+    log_info "  2. Open a new terminal to load latest zsh/mise/prompt configuration."
+    log_info "  3. If GNOME settings were applied, re-login if any desktop tweaks did not appear."
+    log_info "  4. Re-run ./run.sh --verify if you want a post-install health summary."
 }
 
 main

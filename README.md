@@ -81,6 +81,12 @@ Show available steps:
 ./run.sh --help
 ```
 
+Run with an explicit log location:
+
+```bash
+LINUX_SETUP_LOG_FILE="$HOME/.local/state/linux-setup/logs/my-run.log" ./run.sh
+```
+
 ## Documentation
 
 The README stays focused on the initial path. More detailed guidance lives under `docs/`:

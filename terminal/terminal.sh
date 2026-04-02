@@ -45,6 +45,60 @@ installed_wezterm_version() {
     fi
 }
 
+resolve_wezterm_download_url() {
+    local want="$1"
+    local metadata_file="$2"
+
+    local api_url
+    if [[ -n "$want" ]]; then
+        api_url="https://api.github.com/repos/wez/wezterm/releases/tags/${want}"
+    else
+        api_url="https://api.github.com/repos/wez/wezterm/releases/latest"
+    fi
+
+    local -a auth_header=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        auth_header=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    fi
+
+    if ! curl -sSL --retry 3 --retry-delay 2 "${auth_header[@]}" "$api_url" -o "$metadata_file"; then
+        log_warn "Failed to fetch WezTerm release metadata."
+        echo ""
+        return 0
+    fi
+
+    if jq -e '.message' "$metadata_file" &>/dev/null; then
+        log_warn "GitHub API error for WezTerm: $(jq -r '.message' "$metadata_file")"
+        echo ""
+        return 0
+    fi
+
+    local url
+    # Prefer Ubuntu 24.04 first, then Ubuntu 22.04, then any amd64 .deb, then any .deb.
+    url="$(jq -r \
+        '.assets[] | select(.name | test("Ubuntu24\\.04\\.deb$")) | .browser_download_url' \
+        "$metadata_file" | head -n1)"
+    if [[ -z "$url" || "$url" == "null" ]]; then
+        url="$(jq -r \
+            '.assets[] | select(.name | test("Ubuntu22\\.04\\.deb$")) | .browser_download_url' \
+            "$metadata_file" | head -n1)"
+    fi
+    if [[ -z "$url" || "$url" == "null" ]]; then
+        url="$(jq -r \
+            '.assets[] | select(.name | test("amd64.*\\.deb$|x86_64.*\\.deb$")) | .browser_download_url' \
+            "$metadata_file" | head -n1)"
+    fi
+    if [[ -z "$url" || "$url" == "null" ]]; then
+        url="$(jq -r '.assets[] | select(.name | test("\\.deb$")) | .browser_download_url' "$metadata_file" | head -n1)"
+    fi
+
+    if [[ "$url" == "null" ]]; then
+        echo ""
+    else
+        echo "$url"
+    fi
+}
+
 install_wezterm() {
     echo_header "WezTerm terminal emulator"
 
@@ -60,34 +114,18 @@ install_wezterm() {
         log_info "Installed: $got  Pinned: $want — reinstalling to match pin."
     fi
 
-    local temp_dir deb_path download_url
+    local temp_dir deb_path download_url metadata_file
     temp_dir="$(mktemp -d)"
     # shellcheck disable=SC2064
     trap "rm -rf '$temp_dir'" RETURN
+    metadata_file="$temp_dir/release.json"
 
     if [[ -n "$want" ]]; then
-        # Construct the direct asset URL from the pinned version tag.
-        # WezTerm tags look like: 20240203-110809-5046fc22
-        local asset="WezTerm-${want}.Ubuntu24.04.deb"
-        download_url="https://github.com/wez/wezterm/releases/download/${want}/${asset}"
-        log_info "Downloading WezTerm ${want} (pinned)..."
+        log_info "Resolving WezTerm ${want} (pinned) release asset..."
+        download_url="$(resolve_wezterm_download_url "$want" "$metadata_file")"
     else
         log_info "No version pinned — fetching latest WezTerm release metadata..."
-        local metadata_file="$temp_dir/release.json"
-        curl -fsSL "https://api.github.com/repos/wez/wezterm/releases/latest" \
-            -o "$metadata_file"
-        if jq -e '.message' "$metadata_file" &>/dev/null; then
-            log_warn "GitHub API error: $(jq -r '.message' "$metadata_file"). Skipping WezTerm."
-            return 0
-        fi
-        download_url="$(jq -r \
-            '.assets[] | select(.name | test("Ubuntu24\\.04\\.deb$")) | .browser_download_url' \
-            "$metadata_file" | head -n1)"
-        if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-            download_url="$(jq -r \
-                '.assets[] | select(.name | test("\\.deb$")) | .browser_download_url' \
-                "$metadata_file" | head -n1)"
-        fi
+        download_url="$(resolve_wezterm_download_url "" "$metadata_file")"
     fi
 
     if [[ -z "$download_url" || "$download_url" == "null" ]]; then
@@ -96,6 +134,7 @@ install_wezterm() {
     fi
 
     deb_path="$temp_dir/wezterm.deb"
+    log_info "Downloading WezTerm package: $download_url"
     curl -fsSL "$download_url" -o "$deb_path"
     sudo_run apt-get install -y "$deb_path"
     rm -rf "$temp_dir"
