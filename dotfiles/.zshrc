@@ -1,17 +1,24 @@
 # ~/.zshrc — interactive zsh configuration.
 #
 # This file is sourced for interactive shells only.
-# Fill in the sections below with your personal customisations.
+# Cross-platform defaults are tuned for low latency.
+
+# ─── Powerlevel10k instant prompt ─────────────────────────────────────────────
+# Keep this near the top for lower first-prompt and first-command latency.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
 # ─── mise runtime activation ──────────────────────────────────────────────────
-# Activates mise-managed runtimes (Node, Go, Python, …) in interactive shells.
-# This line is also appended automatically by shell/shell.sh.
 if [[ -x "$HOME/.local/bin/mise" ]]; then
     eval "$("$HOME/.local/bin/mise" activate zsh)"
 fi
 
 # ─── Completion ───────────────────────────────────────────────────────────────
-autoload -Uz compinit && compinit
+autoload -Uz compinit
+zmodload zsh/complist
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/.zcompdump-${ZSH_VERSION}"
 
 # ─── History ──────────────────────────────────────────────────────────────────
 HISTFILE="$HOME/.zsh_history"
@@ -20,21 +27,13 @@ SAVEHIST=50000
 setopt HIST_IGNORE_ALL_DUPS   # no duplicate entries
 setopt HIST_IGNORE_SPACE      # skip commands starting with a space
 setopt SHARE_HISTORY          # share history across sessions
+setopt HIST_FCNTL_LOCK        # faster and safer history writes
 
 # ─── Navigation ───────────────────────────────────────────────────────────────
 setopt AUTO_CD                # type a directory name to cd into it
 
 # ─── Key bindings ─────────────────────────────────────────────────────────────
 bindkey -e                    # emacs key bindings (change to -v for vi mode)
-
-# ─── Prompt ───────────────────────────────────────────────────────────────────
-# Replace with your preferred theme (starship, powerlevel10k, pure, …)
-autoload -Uz promptinit && promptinit
-# prompt pure            # uncomment after installing pure
-# eval "$(starship init zsh)"   # uncomment after installing starship
-
-# Simple fallback prompt
-PROMPT='%F{cyan}%n@%m%f:%F{blue}%~%f %# '
 
 # ─── Aliases ──────────────────────────────────────────────────────────────────
 # Source shared aliases if present.
@@ -63,13 +62,62 @@ if [[ -f /usr/share/doc/fzf/examples/completion.zsh ]]; then
     source /usr/share/doc/fzf/examples/completion.zsh
 fi
 
-# ─── tmux auto-attach ─────────────────────────────────────────────────────────
-# Uncomment to automatically attach to (or start) a tmux session when opening
-# a terminal that is not already inside tmux.
-#
-# if command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
-#     tmux attach-session -t default 2>/dev/null || tmux new-session -s default
-# fi
+# ─── Prompt + plugin profile ──────────────────────────────────────────────────
+# Supported values:
+#   antidote-p10k  (default, low-latency explicit setup)
+#   zsh4humans
+ZSH_PROFILE="${ZSH_PROFILE:-${LINUX_SETUP_ZSH_PROFILE:-antidote-p10k}}"
+
+load_antidote_p10k() {
+    local antidote_home="${ANTIDOTE_HOME:-$HOME/.local/share/antidote}"
+    local zsh_plugins="${ZDOTDIR:-$HOME}/.zsh_plugins"
+
+    if [[ -d "$antidote_home/functions" ]]; then
+        fpath=("$antidote_home/functions" $fpath)
+        autoload -Uz antidote
+
+        if [[ -f "${zsh_plugins}.txt" ]]; then
+            if [[ ! "${zsh_plugins}.zsh" -nt "${zsh_plugins}.txt" ]]; then
+                antidote bundle < "${zsh_plugins}.txt" >| "${zsh_plugins}.zsh"
+            fi
+            source "${zsh_plugins}.zsh"
+        fi
+    fi
+
+    if [[ -r "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
+        source "$HOME/.local/share/powerlevel10k/powerlevel10k.zsh-theme"
+    fi
+    [[ -r "$HOME/.p10k.zsh" ]] && source "$HOME/.p10k.zsh"
+}
+
+load_zsh4humans() {
+    if [[ -r "$HOME/.local/share/zsh4humans/z4h.zsh" ]]; then
+        source "$HOME/.local/share/zsh4humans/z4h.zsh"
+    else
+        load_antidote_p10k
+    fi
+}
+
+case "$ZSH_PROFILE" in
+    antidote|antidote-p10k)
+        load_antidote_p10k
+        ;;
+    z4h|zsh4humans)
+        load_zsh4humans
+        ;;
+    *)
+        load_antidote_p10k
+        ;;
+esac
+
+# ─── tmux auto-attach (optional) ──────────────────────────────────────────────
+# Keep disabled by default for predictable shell startup.
+if [[ "${ZSH_TMUX_AUTO_ATTACH:-0}" == "1" ]] \
+    && command -v tmux &>/dev/null \
+    && [[ -z "$TMUX" ]] \
+    && [[ "$TERM_PROGRAM" != "vscode" ]]; then
+    tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+fi
 
 # ─── Local overrides ──────────────────────────────────────────────────────────
 # Machine-specific settings that should not be committed to version control.

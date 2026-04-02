@@ -5,6 +5,22 @@
 -- Un-comment the sections you want.
 
 return {
+    -- ─── Tmux-aware pane navigation ───────────────────────────────────────────
+    -- Use Ctrl-h/j/k/l to move seamlessly between Neovim splits and tmux panes.
+    {
+        "christoomey/vim-tmux-navigator",
+        event = "VeryLazy",
+        init = function()
+            vim.g.tmux_navigator_no_mappings = 1
+        end,
+        keys = {
+            { "<C-h>", "<cmd>TmuxNavigateLeft<cr>",  desc = "Pane left (nvim/tmux)" },
+            { "<C-j>", "<cmd>TmuxNavigateDown<cr>",  desc = "Pane down (nvim/tmux)" },
+            { "<C-k>", "<cmd>TmuxNavigateUp<cr>",    desc = "Pane up (nvim/tmux)" },
+            { "<C-l>", "<cmd>TmuxNavigateRight<cr>", desc = "Pane right (nvim/tmux)" },
+        },
+    },
+
     -- ─── Fuzzy finder (telescope) ─────────────────────────────────────────────
     -- {
     --     "nvim-telescope/telescope.nvim",

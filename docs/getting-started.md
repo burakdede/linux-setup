@@ -71,6 +71,7 @@ bash scripts/test.sh
 Typical follow-up actions:
 
 - open a new shell so `mise` and shell changes are active everywhere
+- pick your zsh profile (`antidote-p10k` by default, or `zsh4humans`)
 - review generated MCP configs and add your own API tokens if needed
 - rerun any optional steps you intentionally skipped the first time
 - adjust manifests or dotfiles only after the base install is stable

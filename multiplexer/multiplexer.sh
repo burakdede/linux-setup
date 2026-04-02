@@ -51,9 +51,13 @@ ensure_tmux_config() {
         log_info "Installing TPM (Tmux Plugin Manager)..."
         git clone --depth 1 https://github.com/tmux-plugins/tpm "$tpm_dir"
         log_success "TPM installed at $tpm_dir"
-        log_info "Press <prefix> + I inside tmux to install configured plugins."
     elif [[ -d "$tpm_dir" ]]; then
         log_info "TPM is already installed."
+    fi
+
+    # Best effort plugin bootstrap so vim-tmux integration works out of the box.
+    if [[ -x "$tpm_dir/bin/install_plugins" ]]; then
+        "$tpm_dir/bin/install_plugins" >/dev/null 2>&1 || true
     fi
 
     log_success "Tmux config: $xdg_conf"

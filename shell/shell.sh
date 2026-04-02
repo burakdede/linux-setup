@@ -14,6 +14,11 @@ source "$SCRIPT_DIR/../utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
 
+ZSH_PROFILE="${LINUX_SETUP_ZSH_PROFILE:-antidote-p10k}"
+ANTIDOTE_DIR="$HOME/.local/share/antidote"
+P10K_DIR="$HOME/.local/share/powerlevel10k"
+Z4H_DIR="$HOME/.local/share/zsh4humans"
+
 install_zsh() {
     echo_header "Zsh"
 
@@ -79,6 +84,44 @@ wire_mise_activation() {
     log_success "mise activation wired into ~/.zshrc"
 }
 
+sync_git_repo() {
+    local repo_url="$1"
+    local dest_dir="$2"
+
+    if [[ -d "$dest_dir/.git" ]]; then
+        log_info "Updating $(basename "$dest_dir")..."
+        if ! git -C "$dest_dir" pull --ff-only >/dev/null 2>&1; then
+            log_warn "Could not fast-forward $dest_dir."
+        fi
+        return 0
+    fi
+
+    log_info "Cloning $(basename "$dest_dir")..."
+    mkdir -p "$(dirname "$dest_dir")"
+    if ! git clone --depth 1 "$repo_url" "$dest_dir" >/dev/null 2>&1; then
+        log_warn "Could not clone $repo_url."
+    fi
+}
+
+install_shell_profile_tools() {
+    echo_header "Zsh prompt and plugins"
+
+    case "$ZSH_PROFILE" in
+        antidote|antidote-p10k)
+            sync_git_repo "https://github.com/mattmc3/antidote.git" "$ANTIDOTE_DIR"
+            sync_git_repo "https://github.com/romkatv/powerlevel10k.git" "$P10K_DIR"
+            log_success "Configured profile: antidote+p10k"
+            ;;
+        z4h|zsh4humans)
+            sync_git_repo "https://github.com/romkatv/zsh4humans.git" "$Z4H_DIR"
+            log_success "Configured profile: zsh4humans"
+            ;;
+        *)
+            log_warn "Unknown LINUX_SETUP_ZSH_PROFILE='$ZSH_PROFILE'. Supported: antidote-p10k, zsh4humans."
+            ;;
+    esac
+}
+
 main() {
     check_root
     export PATH="$HOME/.local/bin:$PATH"
@@ -86,6 +129,7 @@ main() {
     install_zsh
     set_default_shell
     wire_mise_activation
+    install_shell_profile_tools
 
     echo_header "Shell setup complete"
     log_success "zsh is installed and set as the default shell."

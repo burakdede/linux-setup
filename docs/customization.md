@@ -21,7 +21,7 @@ Available skip flags:
 | `LINUX_SETUP_SKIP_DOCKER` | Docker CLI and Compose plugin |
 | `LINUX_SETUP_SKIP_SNAPS` | All snap packages |
 | `LINUX_SETUP_SKIP_CHROME` | Google Chrome |
-| `LINUX_SETUP_SKIP_GITHUB_RELEASE_TOOLS` | GitHub-release binaries such as `yq`, `eza`, `sd`, `scc`, `starship` |
+| `LINUX_SETUP_SKIP_GITHUB_RELEASE_TOOLS` | GitHub-release binaries such as `yq`, `eza`, `sd`, `scc` |
 | `LINUX_SETUP_SKIP_UV` | `uv` and `uv`-managed tools |
 | `LINUX_SETUP_SKIP_CLAUDE` | Claude Code |
 | `LINUX_SETUP_SKIP_NPM_TOOLS` | npm CLIs and MCP packages |
@@ -86,6 +86,38 @@ Practical ways to adapt the repo:
 - swap the contents of `dotfiles/` with your own
 - keep `system/` mostly generic and move personal preferences into `dotfiles/`, `git/`, and `utils/settings.sh`
 - leave `run.sh` orchestration alone unless the execution order itself needs to change
+
+## Zsh Profile Selection
+
+The shell step supports two fast profiles:
+
+- `antidote-p10k` (default)
+- `zsh4humans`
+
+Choose profile during bootstrap:
+
+```bash
+LINUX_SETUP_ZSH_PROFILE=antidote-p10k ./run.sh --only shell
+LINUX_SETUP_ZSH_PROFILE=zsh4humans ./run.sh --only shell
+```
+
+Profile can also be overridden at runtime in `~/.zshrc` via `ZSH_PROFILE`.
+
+## WezTerm + tmux + Neovim Integration
+
+The default dotfiles now align these tools for a consistent workflow:
+
+- WezTerm starts your login shell (`$SHELL`, fallback `/bin/zsh`)
+- zsh can auto-attach to tmux session `main` when enabled
+- tmux uses zsh login shell and preserves working directory on splits
+- Neovim and tmux share pane navigation via `Ctrl-h/j/k/l`
+
+Useful toggles:
+
+```bash
+# Enable tmux auto-attach for this machine
+echo 'export ZSH_TMUX_AUTO_ATTACH=1' >> ~/.zshrc.local
+```
 
 ## Upgrade Behavior
 

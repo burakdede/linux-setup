@@ -142,7 +142,6 @@ check_cmd_optional wezterm "WezTerm"
 
 section "Shell"
 check_cmd zsh      "zsh"
-check_cmd starship "starship prompt"
 check_default_shell
 
 section "Editor"
@@ -159,6 +158,8 @@ section "Dotfiles (symlinks)"
 check_symlink "$HOME/.zshrc"                ".zshrc"
 check_symlink "$HOME/.zshenv"               ".zshenv"
 check_symlink "$HOME/.zprofile"             ".zprofile"
+check_symlink "$HOME/.zsh_plugins.txt"      ".zsh_plugins.txt"
+check_symlink "$HOME/.p10k.zsh"             ".p10k.zsh"
 check_symlink "$HOME/.gitconfig"            ".gitconfig"
 check_symlink "$HOME/.bash_aliases"         ".bash_aliases"
 check_symlink "$HOME/.config/nvim"          ".config/nvim"

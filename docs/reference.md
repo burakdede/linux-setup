@@ -10,6 +10,7 @@ This repository treats the following categories as the essential base layer for 
 - quality gates: `shellcheck`, `pre-commit`, `ruff`, `yamllint`, `eslint`, `prettier`
 - coding agents: `codex`, `claude`, `gemini`
 - runtime management: pinned `mise`, Node, Go, Python, and Rust toolchains
+- shell UX: fast zsh profiles via `antidote+p10k` or `zsh4humans`
 
 ## MCP Configuration
 
@@ -67,3 +68,9 @@ The CI workflow also runs a real Ubuntu system smoke pass to catch upstream pack
 - `mise` activation is added to shell startup files so future shells can see managed runtimes.
 - `ufw` is enabled during the system step unless explicitly skipped.
 - GNOME settings are optional because they require a desktop session and are usually machine-specific.
+
+## Control Mapping
+
+For exact ownership and config locations for WezTerm, tmux, zsh, and Neovim, see:
+
+- [docs/control-map.md](/Users/burakdede/Projects/linux-setup/docs/control-map.md)

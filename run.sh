@@ -24,7 +24,7 @@ Options:
   --help              Show this help text.
 
 Valid STEP values (run in this order on a fresh machine):
-  system          APT packages, runtimes, fonts, starship
+  system          APT packages, runtimes, fonts, core CLI tooling
   dotfiles        Symlink config files into \$HOME
   configure       Git identity prompts — writes to ~/.gitconfig.local
   shell           Install zsh and set it as the default login shell

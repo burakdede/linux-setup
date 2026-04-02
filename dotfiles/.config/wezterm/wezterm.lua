@@ -9,8 +9,9 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
 -- ─── Shell ────────────────────────────────────────────────────────────────────
--- Use zsh (set as default shell by the shell step).
-config.default_prog = { "/usr/bin/zsh", "-l" }
+-- Use login shell if available; fall back to zsh.
+local login_shell = os.getenv("SHELL") or "/bin/zsh"
+config.default_prog = { login_shell, "-l" }
 
 -- ─── Terminal colour support ──────────────────────────────────────────────────
 -- Report full WezTerm capabilities so neovim and tmux render colours correctly.

@@ -11,11 +11,12 @@ Running the default bootstrap installs a practical base layer for coding work:
 - command compatibility symlinks for `fd` and `bat`
 - Google Chrome from the official Google repository
 - Docker CLI and Compose plugin from the official Docker repository
-- selected standalone tools from GitHub releases such as `yq`, `eza`, `sd`, `scc`, and `starship`
+- selected standalone tools from GitHub releases such as `yq`, `eza`, `sd`, and `scc`
 - `uv` plus Python-based developer tools
 - `mise` with pinned Node, Go, and Python toolchains
 - `rustup` with a pinned Rust toolchain
 - terminal coding tools such as Codex, Claude Code, Gemini CLI, `eslint`, and `prettier`
+- zsh shell profiles with two fast prompt/plugin options: `antidote+p10k` (default) and `zsh4humans`
 - dotfiles, shell, editor, terminal, tmux, SDK, and agent configuration steps
 
 Optional and interactive steps stay opt-in:
@@ -80,6 +81,7 @@ The README stays focused on the initial path. More detailed guidance lives under
 - [docs/getting-started.md](/Users/burakdede/Projects/linux-setup/docs/getting-started.md): install flow, step ordering, and verification
 - [docs/customization.md](/Users/burakdede/Projects/linux-setup/docs/customization.md): skip flags, optional modules, manifests, version pins, and personal tailoring
 - [docs/reference.md](/Users/burakdede/Projects/linux-setup/docs/reference.md): installed categories, MCP setup, local gates, CI smoke tests, and operational notes
+- [docs/control-map.md](/Users/burakdede/Projects/linux-setup/docs/control-map.md): who owns each terminal-stack layer and where to edit it in-repo and post-install
 
 ## Design Principles
 
