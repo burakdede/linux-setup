@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Dotfiles installation script.
+#
+# Creates symlinks from $HOME (and $HOME/.config) to the versioned dotfiles in
+# this repository.  Symlinks mean edits in-place are immediately reflected in
+# the repo — no copy/sync step needed.
+#
+# Existing targets are backed up before being replaced.
+# The script is idempotent: re-running it is safe.
 
 set -euo pipefail
 
@@ -11,6 +18,8 @@ trap 'handle_error $? $LINENO' ERR
 
 BACKUP_ROOT="$HOME/.local/state/linux-setup/dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 backup_target() {
     local target="$1"
     local relative="${target#"$HOME"/}"
@@ -20,42 +29,80 @@ backup_target() {
         return 0
     fi
 
+    # Don't back up a symlink that already points to our repo
+    if [[ -L "$target" ]] && \
+       [[ "$(readlink -f "$target" 2>/dev/null)" == "$SCRIPT_DIR"* ]]; then
+        return 0
+    fi
+
     mkdir -p "$(dirname "$backup_path")"
     cp -a "$target" "$backup_path"
 }
 
-install_path() {
-    local source_path="$1"
-    local name
-    name="$(basename "$source_path")"
-    local target_path="$HOME/$name"
+link_path() {
+    local source_path="$1"   # absolute path inside dotfiles/
+    local target_path="$2"   # absolute path in $HOME
 
     backup_target "$target_path"
     mkdir -p "$(dirname "$target_path")"
 
-    if [[ -d "$source_path" ]]; then
-        rm -rf "$target_path"
-        cp -a "$source_path" "$target_path"
-    else
-        cp -a "$source_path" "$target_path"
-    fi
+    # Remove whatever was there (file, dir, or stale symlink)
+    rm -rf "$target_path"
+    ln -sf "$source_path" "$target_path"
 
-    log_success "Installed ${name}"
+    log_success "Linked $(basename "$target_path")"
 }
+
+# ── .config sub-directories ───────────────────────────────────────────────────
+# We never symlink ~/.config itself (other tools own entries there).
+# Instead we symlink each managed sub-directory individually.
+
+install_config_entries() {
+    local config_source="$SCRIPT_DIR/.config"
+    local config_target="$HOME/.config"
+
+    [[ -d "$config_source" ]] || return 0
+
+    mkdir -p "$config_target"
+
+    shopt -s dotglob nullglob
+    local item
+    for item in "$config_source"/*; do
+        local name
+        name="$(basename "$item")"
+        link_path "$item" "$config_target/$name"
+    done
+    shopt -u dotglob nullglob
+}
+
+# ── Top-level dotfiles ────────────────────────────────────────────────────────
+
+install_home_dotfiles() {
+    shopt -s dotglob nullglob
+    local path
+    for path in "$SCRIPT_DIR"/*; do
+        local name
+        name="$(basename "$path")"
+
+        # Skip the installer itself and the .config directory
+        [[ "$name" == "dotfiles.sh" ]] && continue
+        [[ "$name" == ".config"    ]] && continue
+
+        link_path "$path" "$HOME/$name"
+    done
+    shopt -u dotglob nullglob
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
     echo_header "Dotfiles"
     mkdir -p "$BACKUP_ROOT"
 
-    shopt -s dotglob nullglob
-    local path
-    for path in "$SCRIPT_DIR"/*; do
-        [[ "$(basename "$path")" == "dotfiles.sh" ]] && continue
-        install_path "$path"
-    done
-    shopt -u dotglob nullglob
+    install_home_dotfiles
+    install_config_entries
 
-    log_info "Backups stored in $BACKUP_ROOT"
+    log_info "Backups (if any) stored in $BACKUP_ROOT"
 }
 
 main

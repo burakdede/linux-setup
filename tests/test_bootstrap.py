@@ -133,14 +133,26 @@ class BootstrapRepoTests(unittest.TestCase):
 
             installed_aliases = home / ".bash_aliases"
             installed_gitconfig = home / ".gitconfig"
-            installed_config_dir = home / ".config"
-            source_config_dir = REPO_ROOT / "dotfiles" / ".config"
 
             self.assertTrue(installed_aliases.exists())
             self.assertTrue(installed_gitconfig.exists())
-            if source_config_dir.exists():
-                self.assertTrue(installed_config_dir.exists())
 
+            # dotfiles.sh must create symlinks, not copies
+            self.assertTrue(installed_aliases.is_symlink(), ".bash_aliases should be a symlink")
+            self.assertTrue(installed_gitconfig.is_symlink(), ".gitconfig should be a symlink")
+            self.assertTrue(
+                str(installed_gitconfig.resolve()).startswith(str(REPO_ROOT)),
+                "symlink should point into the repo",
+            )
+
+            # .config sub-dirs must also be symlinked
+            source_config_dir = REPO_ROOT / "dotfiles" / ".config"
+            if source_config_dir.exists():
+                for entry in source_config_dir.iterdir():
+                    target = home / ".config" / entry.name
+                    self.assertTrue(target.is_symlink(), f".config/{entry.name} should be a symlink")
+
+            # Existing .gitconfig must have been backed up
             backup_root = home / ".local" / "state" / "linux-setup" / "dotfiles-backups"
             backups = list(backup_root.rglob(".gitconfig"))
             self.assertTrue(backups, "Expected .gitconfig backup to be created")
@@ -420,7 +432,8 @@ class BootstrapRepoTests(unittest.TestCase):
 
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
-            self.assertTrue((Path(temp_home) / ".bash_aliases").exists())
+            aliases = Path(temp_home) / ".bash_aliases"
+            self.assertTrue(aliases.is_symlink(), ".bash_aliases should be a symlink after idempotent run")
 
     def test_agents_script_writes_expected_mcp_commands(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -587,17 +600,19 @@ class BootstrapRepoTests(unittest.TestCase):
         self.assertTrue(tmux_conf.exists(), "tmux.conf scaffold must exist")
 
     def test_dotfiles_installs_config_subdirectories(self):
-        """dotfiles.sh copies .config/ subdirectories (wezterm, nvim, tmux) into $HOME."""
+        """dotfiles.sh symlinks .config/ subdirectories (wezterm, nvim, tmux) into $HOME."""
         with tempfile.TemporaryDirectory() as temp_home:
             env = os.environ.copy()
             env["HOME"] = temp_home
             result = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             home = Path(temp_home)
-            self.assertTrue((home / ".config" / "wezterm" / "wezterm.lua").exists())
-            self.assertTrue((home / ".config" / "nvim" / "init.lua").exists())
-            self.assertTrue((home / ".config" / "tmux" / "tmux.conf").exists())
-            self.assertTrue((home / ".zshrc").exists())
+            # The entries inside .config must be symlinks pointing into the repo
+            for entry in ("wezterm", "nvim", "tmux"):
+                target = home / ".config" / entry
+                self.assertTrue(target.is_symlink(), f".config/{entry} must be a symlink")
+                self.assertTrue(target.exists(), f".config/{entry} symlink must resolve")
+            self.assertTrue((home / ".zshrc").is_symlink())
 
 
 if __name__ == "__main__":
