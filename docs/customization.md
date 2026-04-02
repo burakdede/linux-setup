@@ -42,6 +42,37 @@ These are not part of the non-interactive default path:
 
 They stay opt-in because they are personal or workstation-specific.
 
+## HiDPI Display Tuning (GNOME)
+
+The settings step now applies HiDPI-friendly defaults:
+
+- enables fractional scaling support
+- sets text scale to `1.15`
+- sets cursor size to `32`
+- sets font rendering defaults: `rgba` antialiasing, `slight` hinting, `rgb` subpixel order
+- sets GNOME monospace font to `JetBrainsMono Nerd Font 12`
+
+Override during settings run:
+
+```bash
+LINUX_SETUP_TEXT_SCALE=1.20 LINUX_SETUP_CURSOR_SIZE=36 ./run.sh --include-settings
+```
+
+Panel-specific font tuning:
+
+```bash
+LINUX_SETUP_FONT_RGBA_ORDER=rgb \
+LINUX_SETUP_FONT_ANTIALIASING=rgba \
+LINUX_SETUP_FONT_HINTING=slight \
+LINUX_SETUP_MONOSPACE_FONT="JetBrainsMono Nerd Font 12" \
+./run.sh --include-settings
+```
+
+Notes:
+
+- Use `LINUX_SETUP_FONT_RGBA_ORDER=bgr` only if your panel subpixel layout is BGR.
+- On high-DPI screens, `slight` hinting is usually cleaner than `full`.
+
 ## Manifests
 
 Most package decisions live in text manifests:

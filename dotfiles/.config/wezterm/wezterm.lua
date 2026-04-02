@@ -23,10 +23,12 @@ config.scrollback_lines = 10000
 -- ─── Tab bar ──────────────────────────────────────────────────────────────────
 config.hide_tab_bar_if_only_one_tab = true
 
+-- ─── Font ─────────────────────────────────────────────────────────────────────
+config.font = wezterm.font("JetBrainsMono Nerd Font")
+config.font_size = 13.0
+
 -- ─── Your customisations below ───────────────────────────────────────────────
 -- Colour scheme:   config.color_scheme = "..."
--- Font:            config.font = wezterm.font("JetBrainsMono Nerd Font")
--- Font size:       config.font_size = 13.0
 -- Window padding:  config.window_padding = { left = 8, right = 8, top = 6, bottom = 6 }
 -- Key bindings:    config.keys = { ... }
 
