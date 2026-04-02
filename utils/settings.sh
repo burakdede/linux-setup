@@ -36,18 +36,55 @@ extension_schema_name() {
 }
 
 # Wait until a gsettings schema becomes readable, or time out.
+extension_schema_dir() {
+    local ext_id="$1"
+    local dir="$HOME/.local/share/gnome-shell/extensions/$ext_id/schemas"
+    [[ -d "$dir" ]] && printf '%s' "$dir"
+}
+
+schema_is_readable() {
+    local schema="$1"
+    local schema_dir="${2:-}"
+
+    if [[ -n "$schema_dir" ]]; then
+        gsettings --schemadir "$schema_dir" list-keys "$schema" &>/dev/null && return 0
+    fi
+    gsettings list-keys "$schema" &>/dev/null
+}
+
 wait_for_schema() {
     local schema="$1"
+    local ext_id="${2:-}"
+    local schema_dir=""
+    local timeout_seconds="${LINUX_SETUP_SCHEMA_WAIT_SECONDS:-60}"
+    if [[ -n "$ext_id" ]]; then
+        schema_dir="$(extension_schema_dir "$ext_id")"
+    fi
     local attempts=0
-    while ! gsettings list-keys "$schema" &>/dev/null; do
+    while ! schema_is_readable "$schema" "$schema_dir"; do
         (( attempts++ ))
-        if (( attempts >= 20 )); then
-            log_warn "Schema $schema not available after 20 seconds — skipping."
+        if (( attempts >= timeout_seconds )); then
+            log_warn "Schema $schema not available after ${timeout_seconds} seconds — skipping."
             return 1
         fi
         sleep 1
     done
     return 0
+}
+
+set_schema_value() {
+    local schema="$1"
+    local ext_id="$2"
+    local key="$3"
+    local value="$4"
+    local schema_dir
+    schema_dir="$(extension_schema_dir "$ext_id")"
+
+    if [[ -n "$schema_dir" ]] && schema_is_readable "$schema" "$schema_dir"; then
+        gsettings --schemadir "$schema_dir" set "$schema" "$key" "$value"
+    else
+        gsettings set "$schema" "$key" "$value"
+    fi
 }
 
 configure_gnome_extensions() {
@@ -199,60 +236,60 @@ done
 configure_gnome_extensions
 
 # Configure Tactile
-if wait_for_schema org.gnome.shell.extensions.tactile; then
-    gsettings set org.gnome.shell.extensions.tactile col-0 1
-    gsettings set org.gnome.shell.extensions.tactile col-1 2
-    gsettings set org.gnome.shell.extensions.tactile col-2 1
-    gsettings set org.gnome.shell.extensions.tactile col-3 0
-    gsettings set org.gnome.shell.extensions.tactile row-0 1
-    gsettings set org.gnome.shell.extensions.tactile row-1 1
-    gsettings set org.gnome.shell.extensions.tactile gap-size 32
+if wait_for_schema org.gnome.shell.extensions.tactile tactile@lundal.io; then
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io col-0 1
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io col-1 2
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io col-2 1
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io col-3 0
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io row-0 1
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io row-1 1
+    set_schema_value org.gnome.shell.extensions.tactile tactile@lundal.io gap-size 32
 fi
 
 # Configure Just Perfection
-if wait_for_schema org.gnome.shell.extensions.just-perfection; then
-    gsettings set org.gnome.shell.extensions.just-perfection animation 2
-    gsettings set org.gnome.shell.extensions.just-perfection dash-app-running true
-    gsettings set org.gnome.shell.extensions.just-perfection workspace true
-    gsettings set org.gnome.shell.extensions.just-perfection workspace-popup false
+if wait_for_schema org.gnome.shell.extensions.just-perfection just-perfection-desktop@just-perfection; then
+    set_schema_value org.gnome.shell.extensions.just-perfection just-perfection-desktop@just-perfection animation 2
+    set_schema_value org.gnome.shell.extensions.just-perfection just-perfection-desktop@just-perfection dash-app-running true
+    set_schema_value org.gnome.shell.extensions.just-perfection just-perfection-desktop@just-perfection workspace true
+    set_schema_value org.gnome.shell.extensions.just-perfection just-perfection-desktop@just-perfection workspace-popup false
 fi
 
 # Configure Blur My Shell
-if wait_for_schema org.gnome.shell.extensions.blur-my-shell; then
-    gsettings set org.gnome.shell.extensions.blur-my-shell.appfolder blur false
-    gsettings set org.gnome.shell.extensions.blur-my-shell.lockscreen blur false
-    gsettings set org.gnome.shell.extensions.blur-my-shell.screenshot blur false
-    gsettings set org.gnome.shell.extensions.blur-my-shell.window-list blur false
-    gsettings set org.gnome.shell.extensions.blur-my-shell.panel blur false
-    gsettings set org.gnome.shell.extensions.blur-my-shell.overview blur true
-    gsettings set org.gnome.shell.extensions.blur-my-shell.overview pipeline 'pipeline_default'
-    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true
-    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock brightness 0.6
-    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock sigma 30
-    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true
-    gsettings set org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0
+if wait_for_schema org.gnome.shell.extensions.blur-my-shell blur-my-shell@aunetx; then
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.appfolder blur-my-shell@aunetx blur false
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.lockscreen blur-my-shell@aunetx blur false
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.screenshot blur-my-shell@aunetx blur false
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.window-list blur-my-shell@aunetx blur false
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.panel blur-my-shell@aunetx blur false
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.overview blur-my-shell@aunetx blur true
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.overview blur-my-shell@aunetx pipeline 'pipeline_default'
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur-my-shell@aunetx blur true
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur-my-shell@aunetx brightness 0.6
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur-my-shell@aunetx sigma 30
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur-my-shell@aunetx static-blur true
+    set_schema_value org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur-my-shell@aunetx style-dash-to-dock 0
 fi
 
 # Configure Space Bar
-if wait_for_schema org.gnome.shell.extensions.space-bar; then
-    gsettings set org.gnome.shell.extensions.space-bar.behavior smart-workspace-names false
-    gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts false
-    gsettings set org.gnome.shell.extensions.space-bar.shortcuts enable-move-to-workspace-shortcuts true
-    gsettings set org.gnome.shell.extensions.space-bar.shortcuts open-menu "@as []"
+if wait_for_schema org.gnome.shell.extensions.space-bar space-bar@luchrioh; then
+    set_schema_value org.gnome.shell.extensions.space-bar.behavior space-bar@luchrioh smart-workspace-names false
+    set_schema_value org.gnome.shell.extensions.space-bar.shortcuts space-bar@luchrioh enable-activate-workspace-shortcuts false
+    set_schema_value org.gnome.shell.extensions.space-bar.shortcuts space-bar@luchrioh enable-move-to-workspace-shortcuts true
+    set_schema_value org.gnome.shell.extensions.space-bar.shortcuts space-bar@luchrioh open-menu "@as []"
 fi
 
 # Configure TopHat
-if wait_for_schema org.gnome.shell.extensions.tophat; then
-    gsettings set org.gnome.shell.extensions.tophat show-icons true
-    gsettings set org.gnome.shell.extensions.tophat show-cpu true
-    gsettings set org.gnome.shell.extensions.tophat show-mem true
-    gsettings set org.gnome.shell.extensions.tophat show-disk true
-    gsettings set org.gnome.shell.extensions.tophat network-usage-unit bits
+if wait_for_schema org.gnome.shell.extensions.tophat tophat@fflewddur.github.io; then
+    set_schema_value org.gnome.shell.extensions.tophat tophat@fflewddur.github.io show-icons true
+    set_schema_value org.gnome.shell.extensions.tophat tophat@fflewddur.github.io show-cpu true
+    set_schema_value org.gnome.shell.extensions.tophat tophat@fflewddur.github.io show-mem true
+    set_schema_value org.gnome.shell.extensions.tophat tophat@fflewddur.github.io show-disk true
+    set_schema_value org.gnome.shell.extensions.tophat tophat@fflewddur.github.io network-usage-unit bits
 fi
 
 # Configure AlphabeticalAppGrid
-if wait_for_schema org.gnome.shell.extensions.alphabetical-app-grid; then
-    gsettings set org.gnome.shell.extensions.alphabetical-app-grid folder-order-position 'end'
+if wait_for_schema org.gnome.shell.extensions.alphabetical-app-grid AlphabeticalAppGrid@stuarthayhurst; then
+    set_schema_value org.gnome.shell.extensions.alphabetical-app-grid AlphabeticalAppGrid@stuarthayhurst folder-order-position 'end'
 fi
 
 
@@ -303,34 +340,38 @@ gsettings set org.gnome.shell.keybindings toggle-message-tray "['<Super>v']"
 echo_header "Configuring Dock Settings"
 # Configure dock appearance and behavior
 log_info "Configuring dock settings..."
-# Set Dock to bottom of the screen
-gsettings set org.gnome.shell.extensions.ubuntu-dock dock-position BOTTOM
-# Auto-hide dock
-gsettings set org.gnome.shell.extensions.ubuntu-dock dock-fixed false
-# Set icon size to 32
-gsettings set org.gnome.shell.extensions.ubuntu-dock dash-max-icon-size 32
-# Show on primary display only
-gsettings set org.gnome.shell.extensions.ubuntu-dock multi-monitor false
-# Show applications at top of dock
-gsettings set org.gnome.shell.extensions.ubuntu-dock show-apps-at-top true
-# Show favorite applications in dock
-gsettings set org.gnome.shell.extensions.ubuntu-dock show-favorites true
-# Show running applications even if not pinned
-gsettings set org.gnome.shell.extensions.ubuntu-dock show-running true
-# Show mounted drives in dock
-gsettings set org.gnome.shell.extensions.ubuntu-dock show-mounts true
-# Configure auto-hide behavior
-gsettings set org.gnome.shell.extensions.ubuntu-dock autohide true
-# Set hide delay (in seconds)
-gsettings set org.gnome.shell.extensions.ubuntu-dock hide-delay 0.2
-# Set running indicator style
-gsettings set org.gnome.shell.extensions.ubuntu-dock running-indicator-style 'DOTS'
-# Set background opacity
-gsettings set org.gnome.shell.extensions.ubuntu-dock background-opacity 0.5
-# Set transparency mode
-gsettings set org.gnome.shell.extensions.ubuntu-dock transparency-mode 'FIXED'
-# Set dock not to extend height
-gsettings set org.gnome.shell.extensions.ubuntu-dock extend-height false
+if schema_is_readable org.gnome.shell.extensions.ubuntu-dock; then
+    # Set Dock to bottom of the screen
+    gsettings set org.gnome.shell.extensions.ubuntu-dock dock-position BOTTOM
+    # Auto-hide dock
+    gsettings set org.gnome.shell.extensions.ubuntu-dock dock-fixed false
+    # Set icon size to 32
+    gsettings set org.gnome.shell.extensions.ubuntu-dock dash-max-icon-size 32
+    # Show on primary display only
+    gsettings set org.gnome.shell.extensions.ubuntu-dock multi-monitor false
+    # Show applications at top of dock
+    gsettings set org.gnome.shell.extensions.ubuntu-dock show-apps-at-top true
+    # Show favorite applications in dock
+    gsettings set org.gnome.shell.extensions.ubuntu-dock show-favorites true
+    # Show running applications even if not pinned
+    gsettings set org.gnome.shell.extensions.ubuntu-dock show-running true
+    # Show mounted drives in dock
+    gsettings set org.gnome.shell.extensions.ubuntu-dock show-mounts true
+    # Configure auto-hide behavior
+    gsettings set org.gnome.shell.extensions.ubuntu-dock autohide true
+    # Set hide delay (in seconds)
+    gsettings set org.gnome.shell.extensions.ubuntu-dock hide-delay 0.2
+    # Set running indicator style
+    gsettings set org.gnome.shell.extensions.ubuntu-dock running-indicator-style 'DOTS'
+    # Set background opacity
+    gsettings set org.gnome.shell.extensions.ubuntu-dock background-opacity 0.5
+    # Set transparency mode
+    gsettings set org.gnome.shell.extensions.ubuntu-dock transparency-mode 'FIXED'
+    # Set dock not to extend height
+    gsettings set org.gnome.shell.extensions.ubuntu-dock extend-height false
+else
+    log_warn "Schema org.gnome.shell.extensions.ubuntu-dock is not available; skipping dock-specific settings."
+fi
 
 # ========================= Screenshot and Recording =========================
 echo_header "Screenshot and recording shortcuts..."
