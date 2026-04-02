@@ -49,3 +49,4 @@ gnome-tweaks
 imagemagick
 tmux
 vim
+zsh
