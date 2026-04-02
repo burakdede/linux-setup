@@ -41,6 +41,8 @@ base_commands=(
     yamllint
     eslint
     prettier
+    zsh
+    tmux
 )
 
 for cmd in "${base_commands[@]}"; do
@@ -49,6 +51,14 @@ done
 
 if ! flag_enabled "${LINUX_SETUP_SKIP_DOCKER:-0}"; then
     require_command docker
+fi
+
+if ! flag_enabled "${LINUX_SETUP_SKIP_NEOVIM:-0}"; then
+    require_command nvim
+fi
+
+if ! flag_enabled "${LINUX_SETUP_SKIP_WEZTERM:-0}"; then
+    require_command wezterm
 fi
 
 echo "Smoke verification passed"

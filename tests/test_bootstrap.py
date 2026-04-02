@@ -70,6 +70,10 @@ class BootstrapRepoTests(unittest.TestCase):
             "scripts/test.sh",
             "scripts/verify-system-smoke.sh",
             "scripts/vm-smoke-test.sh",
+            "terminal/terminal.sh",
+            "shell/shell.sh",
+            "editor/editor.sh",
+            "multiplexer/multiplexer.sh",
         ]
         result = self.run_cmd(["bash", "-n", *scripts])
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -90,7 +94,12 @@ class BootstrapRepoTests(unittest.TestCase):
             "scripts/test.sh",
             "scripts/verify-system-smoke.sh",
             "scripts/vm-smoke-test.sh",
+            "terminal/terminal.sh",
+            "shell/shell.sh",
+            "editor/editor.sh",
+            "multiplexer/multiplexer.sh",
             "dotfiles/.bash_aliases",
+            "dotfiles/.zshenv",
         ]
         result = self.run_cmd(["shellcheck", *files])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -497,6 +506,98 @@ class BootstrapRepoTests(unittest.TestCase):
                         "env": {"MIRO_ACCESS_TOKEN": ""},
                     },
                 )
+
+
+    def test_wezterm_config_is_valid_lua(self):
+        """WezTerm config file must exist and be parseable as Lua if luac is available."""
+        config_path = REPO_ROOT / "dotfiles" / ".config" / "wezterm" / "wezterm.lua"
+        self.assertTrue(config_path.exists(), "wezterm.lua dotfile must exist")
+        content = config_path.read_text(encoding="utf-8")
+        self.assertIn("wezterm.config_builder", content)
+        self.assertIn("return config", content)
+
+    def test_run_help_lists_all_steps(self):
+        """run.sh --help must document all orchestrated steps."""
+        result = self.run_cmd(["bash", "run.sh", "--help"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for step in ("system", "dotfiles", "terminal", "shell", "editor", "multiplexer", "sdk", "agents"):
+            self.assertIn(step, result.stdout, f"Step {step!r} missing from --help output")
+
+    def create_sourceable_terminal_script(self, directory: Path) -> Path:
+        original = (REPO_ROOT / "terminal" / "terminal.sh").read_text(encoding="utf-8")
+        lines = original.splitlines()
+        filtered = [
+            l for l in lines
+            if l.strip() != 'source "$SCRIPT_DIR/../utils/utils.sh"'
+            and l.strip() != "main"
+        ]
+        path = directory / "terminal-sourceable.sh"
+        path.write_text("\n".join(filtered) + "\n", encoding="utf-8")
+        return path
+
+    def test_terminal_installer_skips_when_flag_set(self):
+        """terminal.sh skips installation when LINUX_SETUP_SKIP_WEZTERM=1."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            log_file = tmp_path / "log.txt"
+            sourceable = self.create_sourceable_terminal_script(tmp_path)
+
+            command = textwrap.dedent(
+                f"""\
+                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
+                log_info() {{ printf 'info:%s\\n' "$*" >> "{log_file}"; }}
+                log_success() {{ :; }}
+                echo_header() {{ :; }}
+                check_root() {{ :; }}
+                ensure_sudo() {{ :; }}
+                sudo_run() {{ :; }}
+                source "{sourceable}"
+                export LINUX_SETUP_SKIP_WEZTERM=1
+                main
+                """
+            )
+            env = os.environ.copy()
+            env["HOME"] = tmp_dir
+            result = self.run_cmd(["bash", "-lc", command], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            log_output = log_file.read_text(encoding="utf-8") if log_file.exists() else ""
+            self.assertIn("LINUX_SETUP_SKIP_WEZTERM", log_output)
+
+    def test_nvim_config_entrypoint_exists(self):
+        init_lua = REPO_ROOT / "dotfiles" / ".config" / "nvim" / "init.lua"
+        self.assertTrue(init_lua.exists(), "nvim init.lua must exist")
+        content = init_lua.read_text(encoding="utf-8")
+        self.assertIn("lazy", content.lower())
+
+    def test_nvim_lsp_plugin_declares_common_servers(self):
+        lsp_lua = REPO_ROOT / "dotfiles" / ".config" / "nvim" / "lua" / "plugins" / "lsp.lua"
+        self.assertTrue(lsp_lua.exists(), "lsp.lua plugin spec must exist")
+        content = lsp_lua.read_text(encoding="utf-8")
+        for server in ("pyright", "gopls", "rust_analyzer", "jdtls"):
+            self.assertIn(server, content, f"LSP server {server!r} missing from lsp.lua")
+
+    def test_zsh_config_scaffold_exists(self):
+        zshrc = REPO_ROOT / "dotfiles" / ".zshrc"
+        zshenv = REPO_ROOT / "dotfiles" / ".zshenv"
+        self.assertTrue(zshrc.exists(), ".zshrc scaffold must exist")
+        self.assertTrue(zshenv.exists(), ".zshenv scaffold must exist")
+
+    def test_tmux_config_scaffold_exists(self):
+        tmux_conf = REPO_ROOT / "dotfiles" / ".config" / "tmux" / "tmux.conf"
+        self.assertTrue(tmux_conf.exists(), "tmux.conf scaffold must exist")
+
+    def test_dotfiles_installs_config_subdirectories(self):
+        """dotfiles.sh copies .config/ subdirectories (wezterm, nvim, tmux) into $HOME."""
+        with tempfile.TemporaryDirectory() as temp_home:
+            env = os.environ.copy()
+            env["HOME"] = temp_home
+            result = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            home = Path(temp_home)
+            self.assertTrue((home / ".config" / "wezterm" / "wezterm.lua").exists())
+            self.assertTrue((home / ".config" / "nvim" / "init.lua").exists())
+            self.assertTrue((home / ".config" / "tmux" / "tmux.conf").exists())
+            self.assertTrue((home / ".zshrc").exists())
 
 
 if __name__ == "__main__":

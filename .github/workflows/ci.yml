@@ -48,6 +48,9 @@ jobs:
         run: bash scripts/smoke-system.sh
 
       - name: Verify installed commands
+        env:
+          LINUX_SETUP_SKIP_WEZTERM: "1"
+          LINUX_SETUP_SKIP_NEOVIM: "1"
         run: bash scripts/verify-system-smoke.sh
 
       - name: Dotfiles bootstrap
