@@ -45,8 +45,11 @@ ensure_tmux_config() {
         fi
     fi
 
-    # Install TPM (Tmux Plugin Manager) if git is available
-    local tpm_dir="$HOME/.tmux/plugins/tpm"
+    # Install TPM (Tmux Plugin Manager) into XDG data dir to keep runtime
+    # plugin state out of repo-managed dotfiles paths.
+    local plugin_root="$HOME/.local/share/tmux/plugins"
+    local tpm_dir="$plugin_root/tpm"
+    mkdir -p "$plugin_root"
     if [[ ! -d "$tpm_dir" ]] && command_exists git; then
         log_info "Installing TPM (Tmux Plugin Manager)..."
         git clone --depth 1 https://github.com/tmux-plugins/tpm "$tpm_dir"

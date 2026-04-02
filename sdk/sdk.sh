@@ -36,7 +36,8 @@ load_sdkman() {
         restore_nounset=1
         set +u
     fi
-    bash "$tmp_installer"
+    # Do not let SDKMAN mutate shell rc files; we manage init explicitly in dotfiles.
+    SDKMAN_DIR="$HOME/.sdkman" rcupdate=false bash "$tmp_installer"
     if [[ "$restore_nounset" -eq 1 ]]; then
         set -u
         restore_nounset=0
