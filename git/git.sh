@@ -134,12 +134,18 @@ fi
 # Copy key to clipboard
 echo_header "Copying SSH Key to Clipboard"
 if [ -f ~/.ssh/id_ed25519.pub ]; then
-    # Try different clipboard tools
+    # Try common clipboard tools across Linux/macOS/Wayland.
     if command -v xclip &> /dev/null; then
         if xclip -sel clip < ~/.ssh/id_ed25519.pub; then
             log_success "SSH public key copied to clipboard using xclip"
         else
             log_warn "Failed to copy key to clipboard with xclip"
+        fi
+    elif command -v wl-copy &> /dev/null; then
+        if wl-copy < ~/.ssh/id_ed25519.pub; then
+            log_success "SSH public key copied to clipboard using wl-copy"
+        else
+            log_warn "Failed to copy key to clipboard with wl-copy"
         fi
     elif command -v xsel &> /dev/null; then
         if xsel --clipboard < ~/.ssh/id_ed25519.pub; then
@@ -147,8 +153,14 @@ if [ -f ~/.ssh/id_ed25519.pub ]; then
         else
             log_warn "Failed to copy key to clipboard with xsel"
         fi
+    elif command -v pbcopy &> /dev/null; then
+        if pbcopy < ~/.ssh/id_ed25519.pub; then
+            log_success "SSH public key copied to clipboard using pbcopy"
+        else
+            log_warn "Failed to copy key to clipboard with pbcopy"
+        fi
     else
-        log_warn "No clipboard tool found (xclip/xsel). Please install one or copy manually."
+        log_warn "No clipboard tool found (xclip/wl-copy/xsel/pbcopy). Please install one or copy manually."
     fi
     
     log_info "Your SSH public key is at: ~/.ssh/id_ed25519.pub"
