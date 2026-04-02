@@ -32,7 +32,15 @@ load_sdkman() {
     local tmp_installer
     tmp_installer="$(mktemp)"
     curl -fsSL "https://get.sdkman.io" -o "$tmp_installer"
+    if [[ -o nounset ]]; then
+        restore_nounset=1
+        set +u
+    fi
     bash "$tmp_installer"
+    if [[ "$restore_nounset" -eq 1 ]]; then
+        set -u
+        restore_nounset=0
+    fi
     rm -f "$tmp_installer"
     if [[ -o nounset ]]; then
         restore_nounset=1
