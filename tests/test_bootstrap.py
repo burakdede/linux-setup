@@ -591,7 +591,15 @@ class BootstrapRepoTests(unittest.TestCase):
         """versions.txt must parse as KEY=value lines with no blanks in values."""
         versions_file = REPO_ROOT / "versions.txt"
         self.assertTrue(versions_file.exists(), "versions.txt must exist")
-        required = {"NEOVIM_VERSION", "WEZTERM_VERSION", "MISE_VERSION"}
+        required = {
+            "NEOVIM_VERSION",
+            "WEZTERM_VERSION",
+            "MISE_VERSION",
+            "NODE_VERSION",
+            "GO_VERSION",
+            "PYTHON_VERSION",
+            "RUST_VERSION",
+        }
         found = {}
         for raw in versions_file.read_text(encoding="utf-8").splitlines():
             line = raw.split("#", 1)[0].strip()
@@ -614,17 +622,37 @@ class BootstrapRepoTests(unittest.TestCase):
             load_versions "{versions_file}"
             echo "NEOVIM=$NEOVIM_VERSION"
             echo "WEZTERM=$WEZTERM_VERSION"
+            echo "NODE=$NODE_VERSION"
+            echo "GO=$GO_VERSION"
+            echo "PYTHON=$PYTHON_VERSION"
+            echo "RUST=$RUST_VERSION"
             """
         )
         result = self.run_cmd(["bash", "-lc", command])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("NEOVIM=", result.stdout)
         self.assertIn("WEZTERM=", result.stdout)
+        self.assertIn("NODE=", result.stdout)
+        self.assertIn("GO=", result.stdout)
+        self.assertIn("PYTHON=", result.stdout)
+        self.assertIn("RUST=", result.stdout)
         # Values must be non-empty
         for line in result.stdout.splitlines():
             if "=" in line:
                 _, _, val = line.partition("=")
                 self.assertTrue(val.strip(), f"Empty version value: {line!r}")
+
+    def test_system_runtime_installs_are_pinned(self):
+        """Core runtime installs should not float to latest/lts/stable selectors."""
+        system_script = (REPO_ROOT / "system" / "system.sh").read_text(encoding="utf-8")
+        self.assertIn('"node@${NODE_VERSION}"', system_script)
+        self.assertIn('"go@${GO_VERSION}"', system_script)
+        self.assertIn('"python@${PYTHON_VERSION}"', system_script)
+        self.assertIn('rustup toolchain install "$RUST_VERSION"', system_script)
+        self.assertNotIn("node@lts", system_script)
+        self.assertNotIn("go@latest", system_script)
+        self.assertNotIn("python@latest", system_script)
+        self.assertNotIn("update stable --no-self-update", system_script)
 
     def test_wezterm_config_is_valid_lua(self):
         """WezTerm config file must exist and be parseable as Lua if luac is available."""

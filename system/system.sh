@@ -18,6 +18,10 @@ UV_TOOLS_FILE="$SCRIPT_DIR/uv-tools.txt"
 GITHUB_TOOLS_FILE="$SCRIPT_DIR/github-tools.txt"
 MISE_BIN="$HOME/.local/bin/mise"
 MISE_VERSION="${MISE_VERSION:-}"   # loaded from versions.txt by load_versions below
+NODE_VERSION="${NODE_VERSION:-24.14.1}"
+GO_VERSION="${GO_VERSION:-1.26.1}"
+PYTHON_VERSION="${PYTHON_VERSION:-3.13.12}"
+RUST_VERSION="${RUST_VERSION:-1.94.1}"
 
 flag_enabled() {
     local value="${1:-0}"
@@ -349,7 +353,7 @@ install_mise() {
 install_node_runtime() {
     echo_header "Node.js via mise"
     install_mise
-    "$MISE_BIN" use --global node@lts
+    "$MISE_BIN" use --global "node@${NODE_VERSION}"
 }
 
 setup_ufw() {
@@ -367,13 +371,13 @@ setup_ufw() {
 install_go_runtime() {
     echo_header "Go via mise"
     install_mise
-    "$MISE_BIN" use --global go@latest
+    "$MISE_BIN" use --global "go@${GO_VERSION}"
 }
 
 install_python_runtime() {
     echo_header "Python via mise"
     install_mise
-    "$MISE_BIN" use --global python@latest
+    "$MISE_BIN" use --global "python@${PYTHON_VERSION}"
 }
 
 install_rust() {
@@ -381,13 +385,16 @@ install_rust() {
 
     if command_exists rustup; then
         log_info "rustup is already installed."
-        rustup update stable --no-self-update
+        rustup toolchain install "$RUST_VERSION" --profile minimal --no-self-update
+        rustup default "$RUST_VERSION"
         return 0
     fi
 
     curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
     # shellcheck source=/dev/null
     source "$HOME/.cargo/env"
+    rustup toolchain install "$RUST_VERSION" --profile minimal --no-self-update
+    rustup default "$RUST_VERSION"
 }
 
 install_npm_clis() {
@@ -407,7 +414,7 @@ install_npm_clis() {
         [[ -z "$package_name" ]] && continue
 
         log_info "Installing npm package: $package_name"
-        "$MISE_BIN" exec node@lts -- npm install --global "$package_name"
+        "$MISE_BIN" exec "node@${NODE_VERSION}" -- npm install --global "$package_name"
     done < "$NPM_PACKAGES_FILE"
 }
 

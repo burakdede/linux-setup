@@ -45,7 +45,7 @@ This repo treats the following categories as the base layer for coding agents:
 - safer text transforms and repo understanding: `sd`, `scc`
 - quality gates: `shellcheck`, `pre-commit`, `ruff`, `yamllint`, `eslint`, `prettier`
 - agent CLIs: `codex`, `claude`, `gemini`
-- runtime management: `mise` (Node LTS, Go latest, Python latest), `rustup`
+- runtime management: pinned `mise`, Node, Go, Python, and Rust toolchains, plus `rustup`
 
 That keeps the machine optimized for token-efficient codebase work without pulling in every situational devops tool by default.
 
