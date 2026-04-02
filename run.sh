@@ -11,6 +11,7 @@ trap 'handle_error $? $LINENO' ERR
 INCLUDE_GIT=0
 INCLUDE_SETTINGS=0
 ONLY_STEPS=()
+VERIFY_ONLY=0
 
 usage() {
     cat <<'EOF'
@@ -33,6 +34,8 @@ Valid STEP values:
   agents          Coding agent MCP configuration  [depends: system]
   git             GitHub SSH key setup (interactive)
   settings        GNOME desktop preferences (requires desktop session)
+
+  --verify        Print a ✓/✗ summary of installed tools (no installation).
 
 Step dependencies:
   - Run `system` first when bootstrapping a fresh machine; the other steps
@@ -103,6 +106,9 @@ while [[ $# -gt 0 ]]; do
             fi
             ONLY_STEPS+=("$1")
             ;;
+        --verify)
+            VERIFY_ONLY=1
+            ;;
         --help|-h)
             usage
             exit 0
@@ -117,6 +123,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 main() {
+    if [[ $VERIFY_ONLY -eq 1 ]]; then
+        bash "$ROOT_DIR/scripts/verify-install.sh"
+        return 0
+    fi
+
     check_root
     check_directory
 

@@ -74,6 +74,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "shell/shell.sh",
             "editor/editor.sh",
             "multiplexer/multiplexer.sh",
+            "scripts/verify-install.sh",
         ]
         result = self.run_cmd(["bash", "-n", *scripts])
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -98,6 +99,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "shell/shell.sh",
             "editor/editor.sh",
             "multiplexer/multiplexer.sh",
+            "scripts/verify-install.sh",
             "dotfiles/.bash_aliases",
             "dotfiles/.zshenv",
         ]
@@ -520,6 +522,14 @@ class BootstrapRepoTests(unittest.TestCase):
                     },
                 )
 
+
+    def test_run_verify_flag_invokes_verify_script(self):
+        """run.sh --verify must run verify-install.sh without installing anything."""
+        result = self.run_cmd(["bash", "run.sh", "--verify"])
+        # The script will likely report failures on a dev Mac, but it must not
+        # error out at the bash level (syntax / missing script / etc.).
+        self.assertIn(result.returncode, (0, 1), result.stderr)
+        self.assertIn("verification", result.stdout.lower())
 
     def test_versions_file_is_well_formed(self):
         """versions.txt must parse as KEY=value lines with no blanks in values."""
