@@ -648,6 +648,7 @@ class BootstrapRepoTests(unittest.TestCase):
         self.assertIn('"node@${NODE_VERSION}"', system_script)
         self.assertIn('"go@${GO_VERSION}"', system_script)
         self.assertIn('"python@${PYTHON_VERSION}"', system_script)
+        self.assertIn("MISE_PYTHON_PRECOMPILED_FLAVOR=install_only_stripped", system_script)
         self.assertIn('rustup toolchain install "$RUST_VERSION"', system_script)
         self.assertNotIn("node@lts", system_script)
         self.assertNotIn("go@latest", system_script)

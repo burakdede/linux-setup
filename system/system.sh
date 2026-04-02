@@ -377,7 +377,9 @@ install_go_runtime() {
 install_python_runtime() {
     echo_header "Python via mise"
     install_mise
-    "$MISE_BIN" use --global "python@${PYTHON_VERSION}"
+    MISE_PYTHON_COMPILE=0 \
+    MISE_PYTHON_PRECOMPILED_FLAVOR=install_only_stripped \
+        "$MISE_BIN" use --global "python@${PYTHON_VERSION}"
 }
 
 install_rust() {
