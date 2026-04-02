@@ -35,12 +35,12 @@ Available skip flags:
 
 ## Optional Modules
 
-These are not part of the non-interactive default path:
+These run by default, but you can skip them when needed:
 
-- `git`: GitHub SSH setup
-- `settings`: GNOME desktop preferences
+- `git`: GitHub SSH setup (`--skip-git`)
+- `settings`: GNOME desktop preferences (`--skip-settings`)
 
-They stay opt-in because they are personal or workstation-specific.
+They are interactive/workstation-specific, so skip flags are provided for unattended runs.
 
 ## HiDPI Display Tuning (GNOME)
 
@@ -55,7 +55,7 @@ The settings step now applies HiDPI-friendly defaults:
 Override during settings run:
 
 ```bash
-LINUX_SETUP_TEXT_SCALE=1.20 LINUX_SETUP_CURSOR_SIZE=36 ./run.sh --include-settings
+LINUX_SETUP_TEXT_SCALE=1.20 LINUX_SETUP_CURSOR_SIZE=36 ./run.sh
 ```
 
 Panel-specific font tuning:
@@ -66,6 +66,7 @@ LINUX_SETUP_FONT_ANTIALIASING=rgba \
 LINUX_SETUP_FONT_HINTING=slight \
 LINUX_SETUP_MONOSPACE_FONT="JetBrainsMono Nerd Font 12" \
 ./run.sh --include-settings
+./run.sh
 ```
 
 Notes:

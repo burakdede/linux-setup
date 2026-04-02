@@ -28,15 +28,15 @@ This path is meant to work for a generic Ubuntu developer workstation with `sudo
 
 ## Optional Steps
 
-Two steps are intentionally excluded from the base path because they are either interactive or desktop-specific:
+Default run includes all steps, including:
 
-- `./run.sh --include-git`
-- `./run.sh --include-settings`
+- GitHub SSH setup (`git`)
+- GNOME desktop preferences (`settings`)
 
-You can combine them with the base run:
+If you want a non-interactive or server-style path, skip them:
 
 ```bash
-./run.sh --include-git --include-settings
+./run.sh --skip-git --skip-settings
 ```
 
 ## Running Individual Steps

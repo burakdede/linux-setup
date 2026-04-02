@@ -19,9 +19,10 @@ Running the default bootstrap installs a practical base layer for coding work:
 - zsh shell profiles with two fast prompt/plugin options: `antidote+p10k` (default) and `zsh4humans`
 - dotfiles, shell, editor, terminal, tmux, SDK, and agent configuration steps
 
-Optional and interactive steps stay opt-in:
-- GitHub SSH setup: `./run.sh --include-git`
-- GNOME desktop customization: `./run.sh --include-settings`
+Default run includes all steps (including GitHub SSH setup and GNOME settings).
+Use skip flags when you want a non-interactive path:
+- Skip GitHub SSH setup: `./run.sh --skip-git`
+- Skip GNOME desktop settings: `./run.sh --skip-settings`
 
 ## Quick Start
 
@@ -62,10 +63,10 @@ Run only specific steps:
 ./run.sh --only agents
 ```
 
-Include optional steps:
+Run with explicit skips:
 
 ```bash
-./run.sh --include-git --include-settings
+./run.sh --skip-git --skip-settings
 ```
 
 Show available steps:

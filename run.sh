@@ -8,8 +8,8 @@ source "$ROOT_DIR/utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
 
-INCLUDE_GIT=0
-INCLUDE_SETTINGS=0
+INCLUDE_GIT=1
+INCLUDE_SETTINGS=1
 ONLY_STEPS=()
 VERIFY_ONLY=0
 
@@ -18,8 +18,10 @@ usage() {
 Usage: ./run.sh [options]
 
 Options:
-  --include-git       Run the interactive GitHub SSH setup step.
-  --include-settings  Apply GNOME desktop preferences.
+  --include-git       Include GitHub SSH setup step (default: enabled).
+  --include-settings  Include GNOME desktop preferences step (default: enabled).
+  --skip-git          Skip GitHub SSH setup step.
+  --skip-settings     Skip GNOME desktop preferences step.
   --only STEP         Run only a single step. Repeatable.
   --help              Show this help text.
 
@@ -33,8 +35,8 @@ Valid STEP values (run in this order on a fresh machine):
   terminal        Install WezTerm, set as default terminal
   sdk             SDKMAN toolchain (Java, Kotlin, …)
   agents          Coding agent MCP configuration
-  git             GitHub SSH key setup (interactive, opt-in)
-  settings        GNOME desktop preferences (opt-in, requires desktop session)
+  git             GitHub SSH key setup (interactive)
+  settings        GNOME desktop preferences (requires desktop session)
 
   --verify        Print a ✓/✗ summary of installed tools without installing.
 
@@ -99,6 +101,12 @@ while [[ $# -gt 0 ]]; do
         --include-settings)
             INCLUDE_SETTINGS=1
             ;;
+        --skip-git)
+            INCLUDE_GIT=0
+            ;;
+        --skip-settings)
+            INCLUDE_SETTINGS=0
+            ;;
         --only)
             shift
             if [[ $# -eq 0 ]]; then
@@ -132,6 +140,15 @@ main() {
     check_root
     check_directory
 
+    # Defaults for display/font quality in GNOME settings step.
+    # Users can override any of these env vars when invoking run.sh.
+    export LINUX_SETUP_TEXT_SCALE="${LINUX_SETUP_TEXT_SCALE:-1.15}"
+    export LINUX_SETUP_CURSOR_SIZE="${LINUX_SETUP_CURSOR_SIZE:-32}"
+    export LINUX_SETUP_FONT_RGBA_ORDER="${LINUX_SETUP_FONT_RGBA_ORDER:-rgb}"
+    export LINUX_SETUP_FONT_ANTIALIASING="${LINUX_SETUP_FONT_ANTIALIASING:-rgba}"
+    export LINUX_SETUP_FONT_HINTING="${LINUX_SETUP_FONT_HINTING:-slight}"
+    export LINUX_SETUP_MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 12}"
+
     local step_name
     local -a steps=(
         # 1. Base system — everything else depends on this
@@ -162,7 +179,10 @@ main() {
     fi
 
     echo_header "Ubuntu developer machine bootstrap"
-    log_info "Optional steps are disabled by default to keep the base bootstrap non-interactive."
+    log_info "Default run includes all steps; use --skip-git/--skip-settings for non-interactive mode."
+    log_info "Display defaults: text-scale=$LINUX_SETUP_TEXT_SCALE cursor-size=$LINUX_SETUP_CURSOR_SIZE"
+    log_info "Font defaults: rgba-order=$LINUX_SETUP_FONT_RGBA_ORDER antialias=$LINUX_SETUP_FONT_ANTIALIASING hinting=$LINUX_SETUP_FONT_HINTING"
+    log_info "Monospace font: $LINUX_SETUP_MONOSPACE_FONT"
 
     # Warn about unmet dependencies when running with --only
     if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
