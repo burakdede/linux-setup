@@ -117,7 +117,6 @@ return {
             -- ── Mason ensure-install ───────────────────────────────────────────
             require("mason-lspconfig").setup({
                 ensure_installed = vim.tbl_keys(servers),
-                automatic_installation = true,
             })
 
             -- ── Shared on_attach ───────────────────────────────────────────────
@@ -157,17 +156,15 @@ return {
             -- Uncomment after adding nvim-cmp:
             -- capabilities = require("cmp_nvim_lsp").default_capabilities(capabilities)
 
-            -- ── Setup each server ─────────────────────────────────────────────
+            -- ── Setup each server (mason-lspconfig v2 compatible) ────────────
             local lspconfig = require("lspconfig")
-            require("mason-lspconfig").setup_handlers({
-                function(server_name)
-                    local opts = vim.tbl_deep_extend("force", {
-                        on_attach    = on_attach,
-                        capabilities = capabilities,
-                    }, servers[server_name] or {})
-                    lspconfig[server_name].setup(opts)
-                end,
-            })
+            for server_name, server_opts in pairs(servers) do
+                local opts = vim.tbl_deep_extend("force", {
+                    on_attach    = on_attach,
+                    capabilities = capabilities,
+                }, server_opts or {})
+                lspconfig[server_name].setup(opts)
+            end
         end,
     },
 

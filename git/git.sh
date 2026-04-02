@@ -11,6 +11,31 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/../utils/utils.sh"
 
+github_ssh_auth_works() {
+    local ssh_output ssh_exit_code
+    set +e
+    if command_exists timeout; then
+        ssh_output="$(timeout 15 ssh -T git@github.com -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new 2>&1)"
+        ssh_exit_code=$?
+    else
+        ssh_output="$(ssh -T git@github.com -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new 2>&1)"
+        ssh_exit_code=$?
+    fi
+    set -e
+
+    # GitHub returns code 1 for successful auth with no shell access.
+    if echo "$ssh_output" | grep -q "successfully authenticated"; then
+        return 0
+    fi
+
+    # Treat explicit permission/network failures as not-ready.
+    if [[ $ssh_exit_code -ne 0 ]]; then
+        return 1
+    fi
+
+    return 1
+}
+
 # Check if git is installed
 echo_header "Checking Git Installation"
 if ! command_exists git; then
@@ -129,6 +154,14 @@ if [ "$key_loaded" = false ]; then
         log_error "No SSH key found to add to agent"
         exit 1
     fi
+fi
+
+# If SSH auth already works, skip the repetitive copy/browser/manual-test flow.
+if github_ssh_auth_works; then
+    echo_header "GitHub SSH"
+    log_success "GitHub SSH authentication is already working."
+    log_info "Skipping key copy, browser setup instructions, and interactive SSH test."
+    exit 0
 fi
 
 # Copy key to clipboard
