@@ -26,6 +26,12 @@ Install Git, clone the repository, and run:
 
 This path is meant to work for a generic Ubuntu developer workstation with `sudo` access.
 
+For unattended execution, pass Git identity so the configure step is non-blocking:
+
+```bash
+LINUX_SETUP_GIT_NAME="Your Name" LINUX_SETUP_GIT_EMAIL="you@example.com" ./run.sh
+```
+
 ## Optional Steps
 
 Default run includes all steps, including:

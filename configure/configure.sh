@@ -17,6 +17,7 @@ source "$SCRIPT_DIR/../utils/utils.sh"
 trap 'handle_error $? $LINENO' ERR
 
 LOCAL_GITCONFIG="$HOME/.gitconfig.local"
+PROMPT_TIMEOUT_SECONDS="${LINUX_SETUP_PROMPT_TIMEOUT_SECONDS:-60}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,13 +26,38 @@ prompt_with_default() {
     local default="$2"
     local result
 
-    if [[ -n "$default" ]]; then
-        printf '%s [%s]: ' "$prompt" "$default"
-    else
-        printf '%s: ' "$prompt"
+    local prompt_out="/dev/stderr"
+    local prompt_in=""
+    if [[ -r /dev/tty && -w /dev/tty ]]; then
+        prompt_out="/dev/tty"
+        prompt_in="/dev/tty"
     fi
 
-    read -r result
+    if [[ -n "$default" ]]; then
+        printf '%s [%s]: ' "$prompt" "$default" > "$prompt_out"
+    else
+        printf '%s: ' "$prompt" > "$prompt_out"
+    fi
+
+    if [[ "${PROMPT_TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]] && [[ "$PROMPT_TIMEOUT_SECONDS" -gt 0 ]]; then
+        if [[ -n "$prompt_in" ]]; then
+            if ! read -r -t "$PROMPT_TIMEOUT_SECONDS" result < "$prompt_in"; then
+                printf '\n' > "$prompt_out"
+                log_warn "Input timed out after ${PROMPT_TIMEOUT_SECONDS}s."
+                result=""
+            fi
+        elif ! read -r -t "$PROMPT_TIMEOUT_SECONDS" result; then
+            printf '\n' > "$prompt_out"
+            log_warn "Input timed out after ${PROMPT_TIMEOUT_SECONDS}s."
+            result=""
+        fi
+    else
+        if [[ -n "$prompt_in" ]]; then
+            read -r result < "$prompt_in" || result=""
+        else
+            read -r result || result=""
+        fi
+    fi
     if [[ -z "$result" ]]; then
         printf '%s' "$default"
     else
@@ -58,6 +84,24 @@ configure_git_identity() {
     local current_name current_email
     current_name="$(git_local_get user.name || git_global_get user.name)"
     current_email="$(git_local_get user.email || git_global_get user.email)"
+
+    # Non-interactive/automated seeding support.
+    if [[ -n "${LINUX_SETUP_GIT_NAME:-}" ]]; then
+        current_name="${LINUX_SETUP_GIT_NAME}"
+    fi
+    if [[ -n "${LINUX_SETUP_GIT_EMAIL:-}" ]]; then
+        current_email="${LINUX_SETUP_GIT_EMAIL}"
+    fi
+
+    if [[ -n "${LINUX_SETUP_GIT_NAME:-}" && -n "${LINUX_SETUP_GIT_EMAIL:-}" ]]; then
+        touch "$LOCAL_GITCONFIG"
+        git config --file "$LOCAL_GITCONFIG" user.name  "$LINUX_SETUP_GIT_NAME"
+        git config --file "$LOCAL_GITCONFIG" user.email "$LINUX_SETUP_GIT_EMAIL"
+        log_success "Git identity written from environment variables to $LOCAL_GITCONFIG"
+        log_info "  name:  $LINUX_SETUP_GIT_NAME"
+        log_info "  email: $LINUX_SETUP_GIT_EMAIL"
+        return 0
+    fi
 
     if [[ -n "$current_name" && -n "$current_email" ]]; then
         log_info "Current git identity:"

@@ -55,6 +55,12 @@ Run the full setup:
 ./run.sh
 ```
 
+For unattended runs, preseed Git identity so configure step never waits for input:
+
+```bash
+LINUX_SETUP_GIT_NAME="Your Name" LINUX_SETUP_GIT_EMAIL="you@example.com" ./run.sh
+```
+
 Run only specific steps:
 
 ```bash

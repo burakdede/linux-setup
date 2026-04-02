@@ -3,7 +3,7 @@
 
 # Collaboration and productivity
 discord - classic
-obsidian
+obsidian - classic
 localsend
 postman
 zoom-client
