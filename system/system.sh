@@ -299,7 +299,7 @@ install_mise() {
     local want="${MISE_VERSION:-}"
     local got=""
     if [[ -x "$MISE_BIN" ]]; then
-        got="$("$MISE_BIN" --version 2>/dev/null | awk '{print $1}')"
+        got="$("$MISE_BIN" --version 2>/dev/null | awk '{print $2}')"
     fi
 
     if [[ -n "$got" ]] && ! upgrade_enabled; then

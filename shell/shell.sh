@@ -66,7 +66,16 @@ set_default_shell() {
 wire_mise_activation() {
     # shellcheck disable=SC2016
     local mise_line='eval "$("$HOME/.local/bin/mise" activate zsh)"'
-    ensure_line_in_file "$mise_line" "$HOME/.zshrc"
+    local zshrc="$HOME/.zshrc"
+
+    # If .zshrc is already a symlink back into our dotfiles repo, the activation
+    # line is already present in the source file — don't append to the repo copy.
+    if [[ -L "$zshrc" ]]; then
+        log_info "~/.zshrc is a symlink; mise activation line already present in source."
+        return 0
+    fi
+
+    ensure_line_in_file "$mise_line" "$zshrc"
     log_success "mise activation wired into ~/.zshrc"
 }
 
