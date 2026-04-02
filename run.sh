@@ -23,27 +23,27 @@ Options:
   --only STEP         Run only a single step. Repeatable.
   --help              Show this help text.
 
-Valid STEP values:
-  system          APT packages, Docker, runtimes (mise, Rust, Go, Python)
-  dotfiles        Symlink config files into $HOME
-  configure       Interactive prompts: git identity  [safe to skip in CI]
-  terminal        WezTerm  [depends: system]
-  shell           Zsh      [depends: system]
-  editor          Neovim   [depends: system]
-  multiplexer     Tmux     [depends: system]
-  sdk             SDKMAN toolchain (Java, Kotlin, …)  [depends: system]
-  agents          Coding agent MCP configuration  [depends: system]
-  git             GitHub SSH key setup (interactive)
-  settings        GNOME desktop preferences (requires desktop session)
+Valid STEP values (run in this order on a fresh machine):
+  system          APT packages, runtimes, fonts, starship
+  dotfiles        Symlink config files into \$HOME
+  configure       Git identity prompts — writes to ~/.gitconfig.local
+  shell           Install zsh and set it as the default login shell
+  editor          Install Neovim, register as vim/vi/editor
+  multiplexer     Tmux TPM bootstrap and config wiring
+  terminal        Install WezTerm, set as default terminal
+  sdk             SDKMAN toolchain (Java, Kotlin, …)
+  agents          Coding agent MCP configuration
+  git             GitHub SSH key setup (interactive, opt-in)
+  settings        GNOME desktop preferences (opt-in, requires desktop session)
 
-  --verify        Print a ✓/✗ summary of installed tools (no installation).
+  --verify        Print a ✓/✗ summary of installed tools without installing.
 
-Step dependencies:
-  - Run `system` first when bootstrapping a fresh machine; the other steps
-    rely on packages (curl, jq, apt, mise) that system installs.
-  - `editor` (jdtls / Java LSP) needs a JDK — run `sdk` first or install
-    a JDK via another means before opening a Java file in Neovim.
-  - `agents` needs Node (npm) — run `system` so mise installs Node LTS.
+Dependencies:
+  - Run system first on a fresh machine; all other steps need its packages.
+  - configure needs dotfiles (for the .gitconfig symlink).
+  - terminal picks up zsh as its default shell only after shell has run.
+  - editor's Java LSP (jdtls) needs a JDK — run sdk before opening Java files.
+  - agents needs Node.js — run system first (it installs Node via mise).
 EOF
 }
 
@@ -134,14 +134,22 @@ main() {
 
     local step_name
     local -a steps=(
+        # 1. Base system — everything else depends on this
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
+        # 2. Dotfiles — configs in place before any tool is configured
         "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
+        # 3. Identity — needs .gitconfig symlinked by dotfiles
         "configure|$ROOT_DIR/configure/configure.sh|Interactive configuration"
-        "terminal|$ROOT_DIR/terminal/terminal.sh|WezTerm terminal emulator"
+        # 4. Shell — change default shell early; later tools benefit from zsh being active
         "shell|$ROOT_DIR/shell/shell.sh|Zsh shell"
+        # 5. Editor + multiplexer — independent of each other, depend on system
         "editor|$ROOT_DIR/editor/editor.sh|Neovim editor"
         "multiplexer|$ROOT_DIR/multiplexer/multiplexer.sh|Tmux multiplexer"
+        # 6. Terminal — launched last so it picks up zsh as default shell
+        "terminal|$ROOT_DIR/terminal/terminal.sh|WezTerm terminal emulator"
+        # 7. Language SDKs — heavy, some LSP servers (jdtls) need this
         "sdk|$ROOT_DIR/sdk/sdk.sh|SDKMAN toolchain"
+        # 8. Agent tooling — needs npm/node from system
         "agents|$ROOT_DIR/agents/agents.sh|Coding agent MCP configuration"
     )
 
@@ -158,16 +166,23 @@ main() {
 
     # Warn about unmet dependencies when running with --only
     if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
-        for step_name in terminal shell editor multiplexer sdk agents; do
+        # Every tool step needs system
+        for step_name in shell editor multiplexer terminal sdk agents; do
             if contains_step "$step_name"; then
                 check_step_deps "$step_name" system
             fi
         done
+        # configure writes to .gitconfig.local — only useful after dotfiles symlinks .gitconfig
+        if contains_step configure; then
+            check_step_deps configure dotfiles
+        fi
+        # terminal default_prog is zsh — more useful once shell has set zsh as default
+        if contains_step terminal; then
+            check_step_deps terminal shell
+        fi
+        # jdtls (Java LSP in Neovim) needs a JDK from sdk
         if contains_step editor; then
             check_step_deps "editor (Java LSP)" sdk
-        fi
-        if contains_step agents; then
-            check_step_deps "agents (npm MCPs)" system
         fi
     fi
 
