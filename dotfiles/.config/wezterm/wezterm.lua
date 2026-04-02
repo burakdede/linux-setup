@@ -18,6 +18,11 @@ config.default_prog = { login_shell, "-l" }
 config.term = "wezterm"
 -- Avoid key-repeat/input issues observed on some GNOME/Wayland setups.
 config.enable_kitty_keyboard = false
+-- Stability-first defaults on Linux desktop stacks:
+-- - disable native Wayland backend to avoid input duplication issues
+-- - disable IME path unless explicitly needed
+config.enable_wayland = false
+config.use_ime = false
 
 -- ─── Scrollback ───────────────────────────────────────────────────────────────
 config.scrollback_lines = 10000
