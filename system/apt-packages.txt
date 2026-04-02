@@ -41,7 +41,6 @@ timeshift
 ufw
 
 # Useful local development utilities
-alacritty
 ffmpeg
 gh
 gimp

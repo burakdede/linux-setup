@@ -356,7 +356,6 @@ SYSTEM_APPS=(
     'obsidian_obsidian.desktop'
     'localsend_localsend.desktop'
     'obs-studio_obs-studio.desktop'
-    'alacritty.desktop'
     'org.gnome.Nautilus.desktop'
     'org.gnome.Terminal.desktop'
     'org.gnome.Settings.desktop'
