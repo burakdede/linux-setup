@@ -14,17 +14,10 @@ local login_shell = os.getenv("SHELL") or "/bin/zsh"
 config.default_prog = { login_shell, "-l" }
 
 -- ─── Terminal colour support ──────────────────────────────────────────────────
--- Use xterm-256color: the "wezterm" terminfo is not shipped by the apt package
--- so advertising TERM=wezterm causes the shell to fall back anyway, creating a
--- mismatch that garbles Ctrl key sequences (readline Ctrl+W, Ctrl+R, etc.).
+-- xterm-256color is the safest default: wezterm terminfo is not bundled with
+-- the apt package on Ubuntu, so TERM=wezterm causes ncurses fallback and garbled
+-- Ctrl sequences. Use wezterm-256color only when the terminfo is confirmed present.
 config.term = "xterm-256color"
--- Avoid key-repeat/input issues observed on some GNOME/Wayland setups.
-config.enable_kitty_keyboard = false
--- Stability-first defaults on Linux desktop stacks:
--- - disable native Wayland backend to avoid input duplication issues
--- - disable IME path unless explicitly needed
-config.enable_wayland = false
-config.use_ime = false
 
 -- ─── Scrollback ───────────────────────────────────────────────────────────────
 config.scrollback_lines = 10000
@@ -39,43 +32,68 @@ config.font_size = 13.0
 -- ─── Key bindings ─────────────────────────────────────────────────────────────
 -- WezTerm's defaults intercept many Ctrl+letter combos that readline/zsh rely
 -- on (Ctrl+R history search, Ctrl+W kill-word, Ctrl+K kill-line, etc.).
--- Disable conflicting defaults and remap WezTerm actions to Super/Ctrl+Shift.
+-- Disable conflicting defaults and use platform-native modifier keys:
+--   macOS  → CMD        (Cmd+C/V/T/W — standard Mac conventions)
+--   Linux  → CTRL+SHIFT (Ctrl+Shift+C/V/T/W — standard Linux conventions)
 config.disable_default_key_bindings = true
 
 local act = wezterm.action
+local is_mac = wezterm.target_triple:find("darwin") ~= nil
+local mod = is_mac and "SUPER" or "SHIFT|CTRL"
+
 config.keys = {
     -- ── Clipboard ──────────────────────────────────────────────────────────
-    { key = "c", mods = "SUPER",      action = act.CopyTo("Clipboard") },
-    { key = "v", mods = "SUPER",      action = act.PasteFrom("Clipboard") },
+    { key = "c", mods = mod,            action = act.CopyTo("Clipboard") },
+    { key = "v", mods = mod,            action = act.PasteFrom("Clipboard") },
 
     -- ── Tabs ───────────────────────────────────────────────────────────────
-    { key = "t", mods = "SUPER",      action = act.SpawnTab("CurrentPaneDomain") },
-    { key = "w", mods = "SUPER",      action = act.CloseCurrentTab({ confirm = true }) },
-    { key = "Tab", mods = "CTRL",     action = act.ActivateTabRelative(1) },
+    { key = "t", mods = mod,            action = act.SpawnTab("CurrentPaneDomain") },
+    { key = "w", mods = mod,            action = act.CloseCurrentTab({ confirm = true }) },
+    { key = "Tab", mods = "CTRL",       action = act.ActivateTabRelative(1) },
     { key = "Tab", mods = "SHIFT|CTRL", action = act.ActivateTabRelative(-1) },
 
     -- ── Panes ──────────────────────────────────────────────────────────────
-    { key = "d", mods = "SUPER",      action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
-    { key = "d", mods = "SHIFT|SUPER", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
-    { key = "z", mods = "SUPER",      action = act.TogglePaneZoomState },
+    { key = "e", mods = mod,            action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+    { key = "o", mods = mod,            action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
+    { key = "z", mods = mod,            action = act.TogglePaneZoomState },
 
     -- ── Font size ──────────────────────────────────────────────────────────
-    { key = "=", mods = "SUPER",      action = act.IncreaseFontSize },
-    { key = "-", mods = "SUPER",      action = act.DecreaseFontSize },
-    { key = "0", mods = "SUPER",      action = act.ResetFontSize },
+    { key = "=", mods = is_mac and "SUPER" or "CTRL", action = act.IncreaseFontSize },
+    { key = "-", mods = is_mac and "SUPER" or "CTRL", action = act.DecreaseFontSize },
+    { key = "0", mods = is_mac and "SUPER" or "CTRL", action = act.ResetFontSize },
 
     -- ── Window ─────────────────────────────────────────────────────────────
-    { key = "n", mods = "SUPER",      action = act.SpawnWindow },
-    { key = "m", mods = "SUPER",      action = act.Hide },
-    { key = "Enter", mods = "ALT",    action = act.ToggleFullScreen },
+    { key = "n", mods = mod,            action = act.SpawnWindow },
+    { key = "F11",                      action = act.ToggleFullScreen },
 
-    -- ── Search / overlay ───────────────────────────────────────────────────
-    { key = "f", mods = "SUPER",      action = act.Search("CurrentSelectionOrEmptyString") },
-    { key = "l", mods = "SUPER",      action = act.ShowDebugOverlay },
+    -- ── Copy mode (vim-like keyboard text selection) ───────────────────────
+    { key = "x", mods = mod,            action = act.ActivateCopyMode },
+
+    -- ── Search ─────────────────────────────────────────────────────────────
+    { key = "f", mods = mod,            action = act.Search("CurrentSelectionOrEmptyString") },
 
     -- ── Scrollback ─────────────────────────────────────────────────────────
     { key = "PageUp",   mods = "SHIFT", action = act.ScrollByPage(-1) },
     { key = "PageDown", mods = "SHIFT", action = act.ScrollByPage(1) },
+}
+
+-- ─── Mouse bindings ──────────────────────────────────────────────────────────
+config.mouse_bindings = {
+    -- Right-click pastes from clipboard (standard terminal behaviour on Linux).
+    -- If text is selected, right-click copies it instead.
+    {
+        event  = { Down = { streak = 1, button = "Right" } },
+        mods   = "NONE",
+        action = wezterm.action_callback(function(window, pane)
+            local has_selection = window:get_selection_text_for_pane(pane) ~= ""
+            if has_selection then
+                window:perform_action(act.CopyTo("ClipboardAndPrimarySelection"), pane)
+                window:perform_action(act.ClearSelection, pane)
+            else
+                window:perform_action(act.PasteFrom("Clipboard"), pane)
+            end
+        end),
+    },
 }
 
 -- ─── Your customisations below ───────────────────────────────────────────────

@@ -69,9 +69,11 @@ if command -v eza &>/dev/null; then
     alias ll='eza -lah --group-directories-first'
     alias lt='eza --tree --level=2'
 fi
-command -v bat  &>/dev/null && alias cat='bat --paging=never'
-command -v rg   &>/dev/null && alias grep='rg'
-command -v fd   &>/dev/null && alias find='fd'
+# bat is available as its own command — not aliased over cat because it adds
+# decorations that interfere with piping and copy-pasting output.
+# rg and fd are available as their own commands — not aliased over grep/find
+# because they have different flags and aliasing breaks scripts that rely on
+# standard grep/find behaviour.
 
 # Editor shortcuts
 alias vi='nvim'
