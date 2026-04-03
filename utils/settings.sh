@@ -448,6 +448,8 @@ gsettings set org.gnome.mutter center-new-windows true
 log_info "Configuring terminal shortcut..."
 # Set Ctrl+Alt+T as default terminal shortcut
 gsettings set org.gnome.settings-daemon.plugins.media-keys terminal "['<Primary><Alt>t']"
+# Clear XMODIFIERS for WezTerm so iBus XIM doesn't cause double/dropped keystrokes
+gsettings set org.gnome.desktop.default-applications.terminal exec 'env XMODIFIERS= wezterm'
 
 
 log_success "Ubuntu settings configuration completed successfully!"
