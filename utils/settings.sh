@@ -440,6 +440,8 @@ gsettings set org.gnome.shell.keybindings screenshot        "['<Shift><Alt>2']"
 gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
 gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
 
+mkdir -p "$HOME/Pictures/Screenshots"
+
 if command -v gnome-screenshot &>/dev/null; then
     # gnome-screenshot uses GNOME's own portal — works correctly on GNOME/Wayland.
     # grim+slurp requires wlroots compositor (sway etc.) and does not work on GNOME.
@@ -457,7 +459,7 @@ if command -v gnome-screenshot &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
         name    "Screenshot area to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
-        command "gnome-screenshot -ac"
+        command "bash -c 'f=\"\$HOME/Pictures/Screenshots/\$(date +%Y-%m-%d_%H-%M-%S).png\"; gnome-screenshot -af \"\$f\" && wl-copy --type image/png < \"\$f\"'"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
         binding "<Shift><Alt>4"
 
@@ -465,7 +467,7 @@ if command -v gnome-screenshot &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
         name    "Screenshot full screen to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
-        command "gnome-screenshot -c"
+        command "bash -c 'f=\"\$HOME/Pictures/Screenshots/\$(date +%Y-%m-%d_%H-%M-%S).png\"; gnome-screenshot -f \"\$f\" && wl-copy --type image/png < \"\$f\"'"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
         binding "<Shift><Alt>2"
 
@@ -473,7 +475,7 @@ if command -v gnome-screenshot &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
         name    "Screenshot window to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
-        command "gnome-screenshot -wc"
+        command "bash -c 'f=\"\$HOME/Pictures/Screenshots/\$(date +%Y-%m-%d_%H-%M-%S).png\"; gnome-screenshot -wf \"\$f\" && wl-copy --type image/png < \"\$f\"'"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
         binding "<Shift><Alt>3"
 
