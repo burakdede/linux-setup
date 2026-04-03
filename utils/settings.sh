@@ -188,13 +188,18 @@ echo_header "Configuring Ubuntu Settings"
 
 # ========================= Configure Display / HiDPI =========================
 echo_header "Configuring display scaling (HiDPI)"
-# Sensible defaults for 27" 4K monitors:
-# - enable fractional scaling support
-# - increase text scale slightly
-# - increase cursor size for visibility
-# Override at runtime:
-#   LINUX_SETUP_TEXT_SCALE=1.15
-#   LINUX_SETUP_CURSOR_SIZE=32
+# Tuned for dual 27" 4K (3840×2160, ~162 DPI) on X11 with NVIDIA.
+#
+# GNOME's fractional scaling (scale-monitor-framebuffer) on X11 renders an
+# internal 2x framebuffer and downscales — on NVIDIA this causes a significant
+# GPU/performance hit at 144 Hz.  The pragmatic X11 approach is:
+#   - 1x integer scale (no framebuffer overhead)
+#   - text-scaling-factor to bring text to a comfortable size
+#   - larger cursor so it's visible at native 4K density
+#
+# For a proper per-element scaled UI without the performance hit, switch to a
+# Wayland session: GNOME on Wayland handles fractional scaling natively at the
+# compositor level with no extra rendering cost.
 TEXT_SCALE="${LINUX_SETUP_TEXT_SCALE:-1.15}"
 CURSOR_SIZE="${LINUX_SETUP_CURSOR_SIZE:-32}"
 FONT_RGBA_ORDER="${LINUX_SETUP_FONT_RGBA_ORDER:-rgb}"
@@ -202,7 +207,6 @@ FONT_ANTIALIASING="${LINUX_SETUP_FONT_ANTIALIASING:-rgba}"
 FONT_HINTING="${LINUX_SETUP_FONT_HINTING:-slight}"
 MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 12}"
 
-gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
 gsettings set org.gnome.desktop.interface text-scaling-factor "$TEXT_SCALE"
 gsettings set org.gnome.desktop.interface cursor-size "$CURSOR_SIZE"
 gsettings set org.gnome.desktop.interface font-rgba-order "$FONT_RGBA_ORDER"

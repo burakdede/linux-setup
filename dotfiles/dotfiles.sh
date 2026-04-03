@@ -102,6 +102,11 @@ main() {
     install_home_dotfiles
     install_config_entries
 
+    # .gitconfig sets init.templateDir = ~/.git_template; create the directory
+    # so git doesn't emit "warning: templates not found" on every repo operation.
+    mkdir -p "$HOME/.git_template"
+    log_success "Created ~/.git_template (required by init.templateDir in .gitconfig)"
+
     log_info "Backups (if any) stored in $BACKUP_ROOT"
 }
 
