@@ -98,6 +98,45 @@ check_alternative() {
     fi
 }
 
+version_ge() {
+    # returns 0 if $1 >= $2
+    local current="$1"
+    local required="$2"
+    [[ "$(printf '%s\n' "$required" "$current" | sort -V | head -n1)" == "$required" ]]
+}
+
+check_nvim_min_version() {
+    local required="$1"
+    if ! command -v nvim >/dev/null 2>&1; then
+        fail "Neovim not found (required >= $required)"
+        return 0
+    fi
+
+    local current
+    current="$(nvim --version 2>/dev/null | head -n1 | awk '{print $2}' | sed 's/^v//')"
+    if version_ge "$current" "$required"; then
+        ok "Neovim version $current (required >= $required)"
+    else
+        fail "Neovim version $current is too old (required >= $required)"
+    fi
+}
+
+check_contains() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [[ ! -f "$file" ]]; then
+        fail "$label  (missing file: $file)"
+        return 0
+    fi
+
+    if grep -Eq "$pattern" "$file"; then
+        ok "$label"
+    else
+        fail "$label  (pattern not found)"
+    fi
+}
+
 # ── Report ────────────────────────────────────────────────────────────────────
 
 printf '\n%s══ Post-install verification ══%s\n' "$CYAN" "$RESET"
@@ -146,6 +185,7 @@ check_default_shell
 
 section "Editor"
 check_cmd nvim "Neovim"
+check_nvim_min_version "0.11.0"
 if command -v update-alternatives >/dev/null 2>&1; then
     check_alternative vim    "$(command -v nvim 2>/dev/null || true)"
     check_alternative editor "$(command -v nvim 2>/dev/null || true)"
@@ -169,6 +209,28 @@ check_symlink "$HOME/.config/tmux"          ".config/tmux"
 section "Neovim config"
 check_file "$HOME/.config/nvim/init.lua"                         "init.lua"
 check_file "$HOME/.config/nvim/lua/plugins/lsp.lua"              "lua/plugins/lsp.lua"
+
+section "Terminal stack compatibility"
+check_contains "$HOME/.config/wezterm/wezterm.lua" 'config\.term\s*=\s*"wezterm"' "WezTerm reports term=wezterm"
+check_contains "$HOME/.config/tmux/tmux.conf" 'default-terminal "tmux-256color"' "tmux default-terminal is tmux-256color"
+check_contains "$HOME/.config/tmux/tmux.conf" 'terminal-overrides.*,wezterm:RGB' "tmux enables RGB for wezterm"
+check_contains "$HOME/.config/tmux/tmux.conf" "christoomey/vim-tmux-navigator" "tmux navigator plugin declared"
+check_contains "$HOME/.config/nvim/lua/plugins/tools.lua" "vim-tmux-navigator" "nvim tmux-navigator plugin declared"
+check_contains "$HOME/.zshrc" "powerlevel10k" "zsh loads powerlevel10k"
+
+if command -v infocmp >/dev/null 2>&1; then
+    if infocmp tmux-256color >/dev/null 2>&1; then
+        ok "terminfo has tmux-256color"
+    else
+        warn "terminfo missing tmux-256color (colors may degrade inside tmux)"
+    fi
+else
+    warn "infocmp not available; skipped terminfo check"
+fi
+
+if [[ -f "$HOME/.zsh_plugins.zsh" ]] && grep -Eq '^[[:space:]]*warning:' "$HOME/.zsh_plugins.zsh"; then
+    fail "$HOME/.zsh_plugins.zsh contains warning lines (regenerate antidote bundle)"
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 
