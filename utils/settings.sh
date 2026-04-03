@@ -290,7 +290,7 @@ CURSOR_SIZE="${LINUX_SETUP_CURSOR_SIZE:-32}"
 FONT_RGBA_ORDER="${LINUX_SETUP_FONT_RGBA_ORDER:-rgb}"
 FONT_ANTIALIASING="${LINUX_SETUP_FONT_ANTIALIASING:-rgba}"
 FONT_HINTING="${LINUX_SETUP_FONT_HINTING:-slight}"
-MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 12}"
+MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 13}"
 
 gsettings set org.gnome.desktop.interface text-scaling-factor "$TEXT_SCALE"
 gsettings set org.gnome.desktop.interface cursor-size "$CURSOR_SIZE"
