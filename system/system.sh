@@ -212,9 +212,9 @@ setup_tailscale_repo() {
     # shellcheck source=/dev/null
     codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
 
-    sudo_run mkdir -p /etc/apt/keyrings
+    sudo_run mkdir -p /usr/share/keyrings
     if ! curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${codename}.noarmor.gpg" \
-        | sudo tee /etc/apt/keyrings/tailscale-archive-keyring.gpg >/dev/null; then
+        | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null; then
         log_warn "Failed to install Tailscale apt key. Skipping Tailscale."
         return 0
     fi
