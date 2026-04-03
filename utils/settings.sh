@@ -330,37 +330,53 @@ gsettings set org.gnome.shell.keybindings toggle-message-tray "['<Super>v']"
 echo_header "Configuring Dock Settings"
 # Configure dock appearance and behavior
 log_info "Configuring dock settings..."
-if schema_is_readable org.gnome.shell.extensions.ubuntu-dock; then
+apply_dock_settings() {
+    local schema="$1"
     # Set Dock to bottom of the screen
-    gsettings set org.gnome.shell.extensions.ubuntu-dock dock-position BOTTOM
+    gsettings set "$schema" dock-position BOTTOM
     # Auto-hide dock
-    gsettings set org.gnome.shell.extensions.ubuntu-dock dock-fixed false
+    gsettings set "$schema" dock-fixed false
     # Set icon size to 32
-    gsettings set org.gnome.shell.extensions.ubuntu-dock dash-max-icon-size 32
+    gsettings set "$schema" dash-max-icon-size 32
     # Show on primary display only
-    gsettings set org.gnome.shell.extensions.ubuntu-dock multi-monitor false
+    gsettings set "$schema" multi-monitor false
     # Show applications at top of dock
-    gsettings set org.gnome.shell.extensions.ubuntu-dock show-apps-at-top true
+    gsettings set "$schema" show-apps-at-top true
     # Show favorite applications in dock
-    gsettings set org.gnome.shell.extensions.ubuntu-dock show-favorites true
+    gsettings set "$schema" show-favorites true
     # Show running applications even if not pinned
-    gsettings set org.gnome.shell.extensions.ubuntu-dock show-running true
+    gsettings set "$schema" show-running true
     # Show mounted drives in dock
-    gsettings set org.gnome.shell.extensions.ubuntu-dock show-mounts true
+    gsettings set "$schema" show-mounts true
     # Configure auto-hide behavior
-    gsettings set org.gnome.shell.extensions.ubuntu-dock autohide true
+    gsettings set "$schema" autohide true
     # Set hide delay (in seconds)
-    gsettings set org.gnome.shell.extensions.ubuntu-dock hide-delay 0.2
+    gsettings set "$schema" hide-delay 0.2
     # Set running indicator style
-    gsettings set org.gnome.shell.extensions.ubuntu-dock running-indicator-style 'DOTS'
+    gsettings set "$schema" running-indicator-style 'DOTS'
     # Set background opacity
-    gsettings set org.gnome.shell.extensions.ubuntu-dock background-opacity 0.5
+    gsettings set "$schema" background-opacity 0.5
     # Set transparency mode
-    gsettings set org.gnome.shell.extensions.ubuntu-dock transparency-mode 'FIXED'
+    gsettings set "$schema" transparency-mode 'FIXED'
     # Set dock not to extend height
-    gsettings set org.gnome.shell.extensions.ubuntu-dock extend-height false
-else
-    log_warn "Schema org.gnome.shell.extensions.ubuntu-dock is not available; skipping dock-specific settings."
+    gsettings set "$schema" extend-height false
+}
+
+local_dock_configured=0
+if schema_is_readable org.gnome.shell.extensions.dash-to-dock; then
+    log_info "Applying dock settings to dash-to-dock schema."
+    apply_dock_settings org.gnome.shell.extensions.dash-to-dock
+    local_dock_configured=1
+fi
+
+if schema_is_readable org.gnome.shell.extensions.ubuntu-dock; then
+    log_info "Applying dock settings to ubuntu-dock schema."
+    apply_dock_settings org.gnome.shell.extensions.ubuntu-dock
+    local_dock_configured=1
+fi
+
+if [[ "$local_dock_configured" -eq 0 ]]; then
+    log_warn "No supported dock schema found (dash-to-dock/ubuntu-dock); skipping dock-specific settings."
 fi
 
 # ========================= Screenshot and Recording =========================
