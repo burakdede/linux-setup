@@ -287,6 +287,76 @@ EOF
     log_success "Timeshift policy configured: daily snapshots (keep 5), include /home/${install_user} hidden files only."
 }
 
+install_jetbrains_toolbox() {
+    echo_header "JetBrains Toolbox"
+
+    local install_root="$HOME/.local/share/JetBrains/Toolbox"
+    local bin_path="$HOME/.local/bin/jetbrains-toolbox"
+
+    if [[ -x "$bin_path" ]] && ! upgrade_enabled; then
+        log_info "JetBrains Toolbox is already installed. (LINUX_SETUP_UPGRADE=1 to reinstall)"
+        return 0
+    fi
+
+    local metadata_url metadata_file download_url temp_dir archive_path extracted_dir toolbox_exec
+    metadata_url="https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release"
+    temp_dir="$(mktemp -d)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '$temp_dir'" RETURN
+    metadata_file="$temp_dir/toolbox.json"
+
+    if ! curl -fsSL "$metadata_url" -o "$metadata_file"; then
+        log_warn "Failed to fetch JetBrains Toolbox release metadata. Skipping."
+        return 0
+    fi
+
+    download_url="$(jq -r '.TBA[0].downloads.linux.link // empty' "$metadata_file")"
+    if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+        log_warn "Could not resolve JetBrains Toolbox Linux download URL. Skipping."
+        return 0
+    fi
+
+    archive_path="$temp_dir/jetbrains-toolbox.tar.gz"
+    if ! curl -fsSL "$download_url" -o "$archive_path"; then
+        log_warn "Failed to download JetBrains Toolbox archive. Skipping."
+        return 0
+    fi
+
+    mkdir -p "$install_root" "$HOME/.local/bin"
+    tar -xzf "$archive_path" -C "$temp_dir"
+    extracted_dir="$(find "$temp_dir" -maxdepth 1 -type d -name 'jetbrains-toolbox-*' | head -n1)"
+    if [[ -z "$extracted_dir" ]]; then
+        log_warn "Could not extract JetBrains Toolbox archive. Skipping."
+        return 0
+    fi
+
+    rm -rf "${install_root:?}/"*
+    cp -R "$extracted_dir"/. "$install_root"/
+
+    toolbox_exec="$install_root/jetbrains-toolbox"
+    if [[ ! -x "$toolbox_exec" ]]; then
+        log_warn "JetBrains Toolbox binary not found after install. Skipping."
+        return 0
+    fi
+
+    ln -sf "$toolbox_exec" "$bin_path"
+
+    # Best-effort desktop launcher.
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$HOME/.local/share/applications/jetbrains-toolbox.desktop" <<EOF
+[Desktop Entry]
+Name=JetBrains Toolbox
+Exec=$toolbox_exec
+Icon=jetbrains-toolbox
+Type=Application
+Categories=Development;IDE;
+Terminal=false
+StartupNotify=true
+EOF
+
+    log_success "JetBrains Toolbox installed: $bin_path"
+}
+
 setup_docker_repo() {
     echo_header "Docker CLI and Compose"
 
@@ -656,6 +726,10 @@ main() {
 
     if ! should_skip_step TAILSCALE; then
         setup_tailscale_repo
+    fi
+
+    if ! should_skip_step JETBRAINS_TOOLBOX; then
+        install_jetbrains_toolbox
     fi
 
     if ! should_skip_step TIMESHIFT; then
