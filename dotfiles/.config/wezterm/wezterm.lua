@@ -27,6 +27,53 @@ config.scrollback_lines = 10000
 
 -- ─── Tab bar ──────────────────────────────────────────────────────────────────
 config.hide_tab_bar_if_only_one_tab = true
+config.use_fancy_tab_bar           = false   -- retro tab bar; styled via colors below
+config.tab_bar_at_bottom           = true
+config.tab_max_width               = 32
+
+-- Tab title: explicit title > process (if not shell) > cwd basename > "?"
+-- Unseen output in inactive tabs is marked with a dot prefix.
+local SHELLS = { zsh = true, bash = true, sh = true, fish = true }
+
+local function basename(path)
+    return (path or ""):match("([^/\\]+)[/\\]?$") or path or ""
+end
+
+wezterm.on("format-tab-title", function(tab, _tabs, _panes, _config, _hover, max_width)
+    local pane = tab.active_pane
+
+    -- 1. Explicit title set via `wezterm cli set-tab-title` or OSC 0/2
+    local title = (tab.tab_title and tab.tab_title ~= "") and tab.tab_title or nil
+
+    -- 2. Foreground process, if it is not a bare shell
+    if not title then
+        local proc = basename(pane.foreground_process_name or "")
+        if proc ~= "" and not SHELLS[proc] then
+            title = proc
+        end
+    end
+
+    -- 3. Current working directory basename
+    if not title then
+        local cwd_obj = pane.current_working_dir
+        if cwd_obj then
+            local path = type(cwd_obj) == "table" and cwd_obj.file_path or tostring(cwd_obj)
+            local dir = basename(path)
+            if dir ~= "" then title = dir end
+        end
+    end
+
+    title = title or "?"
+
+    -- Truncate
+    if #title > max_width - 4 then
+        title = title:sub(1, max_width - 5) .. "…"
+    end
+
+    local prefix = (not tab.is_active and pane.has_unseen_output) and "● " or ""
+    local zoomed = pane.is_zoomed and " ⬡" or ""
+    return string.format(" %s%d: %s%s ", prefix, tab.tab_index + 1, title, zoomed)
+end)
 
 -- ─── Font ─────────────────────────────────────────────────────────────────────
 config.font = wezterm.font("JetBrainsMono Nerd Font")
@@ -109,6 +156,59 @@ config.mouse_bindings = {
 
 -- ─── Colour scheme ───────────────────────────────────────────────────────────
 config.color_scheme = "Catppuccin Mocha"
+
+-- ─── Transparency & blur ─────────────────────────────────────────────────────
+-- window_background_opacity: 1.0 = opaque, 0.0 = fully transparent.
+-- macos_window_background_blur blurs the content behind the window (macOS only).
+-- On Linux/X11 (no compositor blur API) transparency shows the desktop beneath.
+-- Adjust opacity to taste; values around 0.85–0.92 keep text readable.
+config.window_background_opacity    = 0.95
+config.macos_window_background_blur = 20   -- macOS only; no-op on Linux
+
+-- ─── Tab bar colours (Catppuccin Mocha palette) ───────────────────────────────
+-- Reference: https://github.com/catppuccin/catppuccin#-palette
+local mocha = {
+    base    = "#1e1e2e",
+    mantle  = "#181825",
+    crust   = "#11111b",
+    surface0= "#313244",
+    surface1= "#45475a",
+    overlay1= "#7f849c",
+    text    = "#cdd6f4",
+    lavender= "#b4befe",
+    blue    = "#89b4fa",
+    mauve   = "#cba6f7",
+    peach   = "#fab387",
+    green   = "#a6e3a1",
+    yellow  = "#f9e2af",
+}
+
+config.colors = {
+    tab_bar = {
+        background = mocha.crust,
+        active_tab = {
+            bg_color  = mocha.base,
+            fg_color  = mocha.lavender,
+            intensity = "Bold",
+        },
+        inactive_tab = {
+            bg_color = mocha.mantle,
+            fg_color = mocha.overlay1,
+        },
+        inactive_tab_hover = {
+            bg_color = mocha.surface0,
+            fg_color = mocha.text,
+        },
+        new_tab = {
+            bg_color = mocha.crust,
+            fg_color = mocha.overlay1,
+        },
+        new_tab_hover = {
+            bg_color = mocha.surface0,
+            fg_color = mocha.text,
+        },
+    },
+}
 
 -- ─── Your customisations below ───────────────────────────────────────────────
 -- Window padding:  config.window_padding = { left = 8, right = 8, top = 6, bottom = 6 }

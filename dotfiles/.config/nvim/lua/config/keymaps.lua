@@ -36,7 +36,7 @@ map("v", "K", ":m '<-2<cr>gv=gv", { desc = "Move selection up" })
 -- ─── Diagnostics ──────────────────────────────────────────────────────────────
 map("n", "[d", vim.diagnostic.goto_prev,  { desc = "Previous diagnostic" })
 map("n", "]d", vim.diagnostic.goto_next,  { desc = "Next diagnostic" })
-map("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic float" })
+map("n", "<leader>d", vim.diagnostic.open_float, { desc = "Show diagnostic float" })
 
 -- ─── Quick file save ──────────────────────────────────────────────────────────
 map({ "n", "i", "v" }, "<C-s>", "<Esc><cmd>w<cr>", { desc = "Save file" })
