@@ -143,6 +143,82 @@ setup_google_chrome_repo() {
     sudo_run apt-get install -y google-chrome-stable
 }
 
+setup_spotify_repo() {
+    echo_header "Spotify"
+
+    if dpkg -s spotify-client >/dev/null 2>&1; then
+        log_info "Spotify is already installed."
+        return 0
+    fi
+
+    sudo_run mkdir -p /etc/apt/keyrings
+    if ! curl -fsSL https://download.spotify.com/debian/pubkey_7A3A762FAFD4A51F.gpg \
+        | sudo gpg --dearmor -o /etc/apt/keyrings/spotify.gpg; then
+        log_warn "Failed to install Spotify apt key. Skipping Spotify."
+        return 0
+    fi
+    sudo_run chmod 644 /etc/apt/keyrings/spotify.gpg
+
+    printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/spotify.gpg] https://repository.spotify.com stable non-free\n' \
+        | sudo tee /etc/apt/sources.list.d/spotify.list >/dev/null
+
+    sudo_run apt-get update
+    if ! sudo_run apt-get install -y spotify-client; then
+        log_warn "Failed to install spotify-client from apt repo."
+    fi
+}
+
+install_steam_apt() {
+    echo_header "Steam"
+
+    if dpkg -s steam-installer >/dev/null 2>&1 || dpkg -s steam >/dev/null 2>&1; then
+        log_info "Steam is already installed."
+        return 0
+    fi
+
+    # steam-installer is provided by multiverse on Ubuntu.
+    if command_exists add-apt-repository; then
+        sudo_run add-apt-repository -y multiverse || true
+    fi
+
+    sudo_run dpkg --add-architecture i386
+    sudo_run apt-get update
+    if ! sudo_run apt-get install -y steam-installer; then
+        log_warn "Failed to install steam-installer from apt."
+    fi
+}
+
+setup_tailscale_repo() {
+    echo_header "Tailscale"
+
+    if command_exists tailscale; then
+        log_info "Tailscale is already installed."
+        return 0
+    fi
+
+    local codename
+    # shellcheck source=/dev/null
+    codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
+
+    sudo_run mkdir -p /etc/apt/keyrings
+    if ! curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${codename}.noarmor.gpg" \
+        | sudo tee /etc/apt/keyrings/tailscale-archive-keyring.gpg >/dev/null; then
+        log_warn "Failed to install Tailscale apt key. Skipping Tailscale."
+        return 0
+    fi
+
+    if ! curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${codename}.tailscale-keyring.list" \
+        | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null; then
+        log_warn "Failed to install Tailscale apt source. Skipping Tailscale."
+        return 0
+    fi
+
+    sudo_run apt-get update
+    if ! sudo_run apt-get install -y tailscale; then
+        log_warn "Failed to install Tailscale from apt."
+    fi
+}
+
 setup_docker_repo() {
     echo_header "Docker CLI and Compose"
 
@@ -493,6 +569,18 @@ main() {
 
     if ! should_skip_step CHROME; then
         setup_google_chrome_repo
+    fi
+
+    if ! should_skip_step SPOTIFY; then
+        setup_spotify_repo
+    fi
+
+    if ! should_skip_step STEAM; then
+        install_steam_apt
+    fi
+
+    if ! should_skip_step TAILSCALE; then
+        setup_tailscale_repo
     fi
 
     if ! should_skip_step GITHUB_RELEASE_TOOLS; then

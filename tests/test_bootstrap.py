@@ -392,6 +392,9 @@ class BootstrapRepoTests(unittest.TestCase):
                 setup_docker_repo() {{ printf 'docker\\n' >> "{log_file}"; }}
                 install_snap_packages() {{ printf 'snaps\\n' >> "{log_file}"; }}
                 setup_google_chrome_repo() {{ printf 'chrome\\n' >> "{log_file}"; }}
+                setup_spotify_repo() {{ printf 'spotify\\n' >> "{log_file}"; }}
+                install_steam_apt() {{ printf 'steam\\n' >> "{log_file}"; }}
+                setup_tailscale_repo() {{ printf 'tailscale\\n' >> "{log_file}"; }}
                 install_github_release_tools() {{ printf 'gh-tools\\n' >> "{log_file}"; }}
                 install_uv() {{ printf 'uv\\n' >> "{log_file}"; }}
                 install_uv_tools() {{ printf 'uv-tools\\n' >> "{log_file}"; }}
@@ -419,6 +422,9 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertIn("core", output)
             self.assertIn("apt", output)
             self.assertIn("docker", output)
+            self.assertIn("spotify", output)
+            self.assertIn("steam", output)
+            self.assertIn("tailscale", output)
             self.assertNotIn("snaps", output)
             self.assertNotIn("chrome", output)
             self.assertNotIn("go", output)

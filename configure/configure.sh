@@ -28,7 +28,9 @@ prompt_with_default() {
 
     local prompt_out="/dev/stderr"
     local prompt_in=""
-    if [[ -r /dev/tty && -w /dev/tty ]]; then
+    # Use /dev/tty only for true interactive sessions.
+    # In tests/CI, stdin may be piped input; prefer stdin there.
+    if [[ -t 0 && -r /dev/tty && -w /dev/tty ]]; then
         prompt_out="/dev/tty"
         prompt_in="/dev/tty"
     fi
