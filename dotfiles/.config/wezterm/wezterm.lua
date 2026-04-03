@@ -14,15 +14,12 @@ local login_shell = os.getenv("SHELL") or "/bin/zsh"
 config.default_prog = { login_shell, "-l" }
 
 -- ─── Terminal colour support ──────────────────────────────────────────────────
--- xterm-256color is the safest default: wezterm terminfo is not bundled with
--- the apt package on Ubuntu, so TERM=wezterm causes ncurses fallback and garbled
--- Ctrl sequences. Use wezterm-256color only when the terminfo is confirmed present.
+-- xterm-256color is the safest default — wezterm-256color terminfo causes
+-- garbled output in some tools on this GNOME/Ubuntu setup.
 config.term = "xterm-256color"
--- Disable kitty keyboard protocol — causes key-repeat/input jitter with
--- autocomplete on GNOME/Wayland setups.
+-- Kitty keyboard protocol causes key-repeat/input jitter on this setup.
 config.enable_kitty_keyboard = false
--- Run under XWayland rather than native Wayland backend to avoid input
--- duplication and rendering glitches on GNOME/Wayland.
+-- Native Wayland backend causes crashes/instability on this setup.
 config.enable_wayland = false
 
 -- ─── Scrollback ───────────────────────────────────────────────────────────────
