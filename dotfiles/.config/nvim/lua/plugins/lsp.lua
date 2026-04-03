@@ -155,14 +155,14 @@ return {
             local capabilities = vim.lsp.protocol.make_client_capabilities()
             capabilities = require("cmp_nvim_lsp").default_capabilities(capabilities)
 
-            -- ── Setup each server (mason-lspconfig v2 compatible) ────────────
-            local lspconfig = require("lspconfig")
+            -- ── Setup each server (nvim 0.11+ vim.lsp.config API) ────────────
             for server_name, server_opts in pairs(servers) do
                 local opts = vim.tbl_deep_extend("force", {
                     on_attach    = on_attach,
                     capabilities = capabilities,
                 }, server_opts or {})
-                lspconfig[server_name].setup(opts)
+                vim.lsp.config(server_name, opts)
+                vim.lsp.enable(server_name)
             end
         end,
     },
@@ -253,34 +253,23 @@ return {
     {
         "nvim-treesitter/nvim-treesitter",
         build  = ":TSUpdate",
-        event  = { "BufReadPre", "BufNewFile" },
-        config = function()
-            local ok, ts_configs = pcall(require, "nvim-treesitter.configs")
-            if not ok then
-                vim.notify("nvim-treesitter is not available yet; run :Lazy sync", vim.log.levels.WARN)
-                return
-            end
-
-            ts_configs.setup({
-                -- Parsers that are always installed
-                ensure_installed = {
-                    "bash", "c", "cmake", "css", "diff",
-                    "dockerfile", "go", "gomod", "gowork",
-                    "html", "java", "javascript", "json", "json5",
-                    "kotlin", "lua", "luadoc", "make",
-                    "markdown", "markdown_inline",
-                    "python", "regex", "ron", "rst",
-                    "rust", "scala", "sql",
-                    "toml", "tsx", "typescript",
-                    "vim", "vimdoc", "yaml",
-                },
-                auto_install    = true,   -- install parsers for new file types on open
-                highlight       = { enable = true },
-                indent          = { enable = true },
-                -- Uncomment for smarter text-objects:
-                -- textobjects = { ... }
-            })
-        end,
+        lazy   = false,
+        opts   = {
+            ensure_installed = {
+                "bash", "c", "cmake", "css", "diff",
+                "dockerfile", "go", "gomod", "gowork",
+                "html", "java", "javascript", "json", "json5",
+                "kotlin", "lua", "luadoc", "make",
+                "markdown", "markdown_inline",
+                "python", "regex", "ron", "rst",
+                "rust", "scala", "sql",
+                "toml", "tsx", "typescript",
+                "vim", "vimdoc", "yaml",
+            },
+            auto_install = true,
+            highlight    = { enable = true },
+            indent       = { enable = true },
+        },
     },
 
     -- ─── Inline diagnostics (optional; un-comment to enable) ─────────────────

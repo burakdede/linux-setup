@@ -142,6 +142,17 @@ register_alternatives() {
     log_success "vim, vi, and editor now resolve to nvim."
 }
 
+bootstrap_plugins() {
+    if ! command_exists nvim; then
+        log_warn "nvim not found; skipping plugin bootstrap."
+        return 0
+    fi
+
+    log_info "Bootstrapping Neovim plugins (headless)..."
+    nvim --headless "+Lazy! sync" +qa 2>&1 | grep -v "^$" || true
+    log_success "Neovim plugins installed."
+}
+
 main() {
     check_root
     ensure_sudo
@@ -150,13 +161,13 @@ main() {
     if ! should_skip_step NEOVIM; then
         install_neovim
         register_alternatives
+        bootstrap_plugins
     else
         log_info "Skipping Neovim (LINUX_SETUP_SKIP_NEOVIM is set)."
     fi
 
     echo_header "Editor setup complete"
     log_success "Neovim is ready. Config: ~/.config/nvim/"
-    log_info "On first launch, lazy.nvim will bootstrap itself and install plugins."
 }
 
 main
