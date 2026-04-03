@@ -66,9 +66,21 @@ add_mcp_all() {
 
 # Like add_mcp_all but never blocks the install — used for token-gated MCPs
 # whose key may be absent. Logs a warning on failure instead of exiting.
+# On re-runs, skips if the MCP entry already exists in both files (to avoid
+# wiping API keys the user has filled in since the last run).
 try_add_mcp_all() {
     local name="$1"
     local config="$2"
+
+    local claude_has codex_has
+    claude_has=$(jq -e --arg n "$name" '.mcpServers[$n] // empty' "$CLAUDE_JSON" 2>/dev/null && echo yes || echo no)
+    codex_has=$(jq -e --arg n "$name" '.mcpServers[$n] // empty' "$CODEX_JSON" 2>/dev/null && echo yes || echo no)
+
+    if [[ "$claude_has" == "yes" && "$codex_has" == "yes" ]]; then
+        log_info "MCP '$name' already registered — skipping to preserve existing config."
+        return 0
+    fi
+
     if ! (add_mcp_all "$name" "$config") 2>/dev/null; then
         log_warn "MCP '$name' could not be registered — skipping (fill in manually later)"
     fi

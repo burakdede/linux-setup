@@ -97,7 +97,11 @@ configure_gnome_extensions() {
     fi
 
     log_info "Installing gnome-extensions-cli with pipx..."
-    pipx install gnome-extensions-cli --force
+    if pipx list 2>/dev/null | grep -q "gnome-extensions-cli"; then
+        pipx upgrade gnome-extensions-cli 2>/dev/null || true
+    else
+        pipx install gnome-extensions-cli
+    fi
     pipx ensurepath
 
     export PATH="$PATH:$HOME/.local/bin"
@@ -117,37 +121,19 @@ configure_gnome_extensions() {
         "AlphabeticalAppGrid@stuarthayhurst"
     )
 
-    echo "Disabling and cleaning up all custom extensions..."
-    local ext extension_dir schema_name
+    # Build the list of already-installed extension IDs once for efficiency.
+    local installed_exts
+    installed_exts="$(gext list 2>/dev/null || true)"
+
+    local ext
     for ext in "${extensions_to_install[@]}"; do
-        log_info "Processing cleanup for: $ext"
-
-        if ! gext list | grep -q "^$ext$"; then
-            log_warn "Extension not found, skipping cleanup."
-        else
-            log_info "Disabling extension..."
-            gext disable "$ext" || log_warn "Failed to disable extension (already disabled or error)."
-
-            extension_dir="$HOME/.local/share/gnome-shell/extensions/$ext"
-            if [ -d "$extension_dir" ]; then
-                log_info "Removing extension directory: $extension_dir"
-                rm -rf "$extension_dir"
-            fi
-
-            schema_name="$(extension_schema_name "$ext")"
-            log_info "Resetting gsettings schema: org.gnome.shell.extensions.$schema_name"
-            gsettings reset-recursively "org.gnome.shell.extensions.$schema_name" || log_warn "No gsettings schema found to reset."
-            log_success "Cleanup complete for: $ext"
+        if echo "$installed_exts" | grep -q "^$ext$"; then
+            log_info "Extension already installed, skipping: $ext"
+            # Ensure it is enabled even on re-runs.
+            gext enable "$ext" 2>/dev/null || true
+            continue
         fi
-        echo ""
-    done
 
-    log_info "Waiting for cleanup to complete..."
-    sleep 2
-    echo ""
-    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-
-    for ext in "${extensions_to_install[@]}"; do
         log_info "Installing extension: $ext"
 
         if ! gext install "$ext"; then

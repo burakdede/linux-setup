@@ -435,6 +435,13 @@ install_node_runtime() {
 setup_ufw() {
     echo_header "ufw firewall"
 
+    # Skip the destructive reset if ufw is already active — resetting wipes all
+    # user-added rules and is only necessary on a fresh machine.
+    if sudo ufw status | grep -q "^Status: active"; then
+        log_info "ufw is already active; skipping reset to preserve existing rules."
+        return 0
+    fi
+
     sudo_run ufw --force reset
     sudo_run ufw default deny incoming
     sudo_run ufw default allow outgoing
