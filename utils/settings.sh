@@ -440,43 +440,46 @@ gsettings set org.gnome.shell.keybindings screenshot        "['<Shift><Alt>2']"
 gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
 gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
 
-if command -v flameshot &>/dev/null; then
-    # Register flameshot custom keybindings
-    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \
-        "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/', \
-          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/', \
-          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/']"
+if command -v grim &>/dev/null && command -v slurp &>/dev/null; then
+    # Native Wayland screenshot stack: grim (capture) + slurp (selection) + wl-copy (clipboard).
+    # flameshot v12/Qt5 has broken Wayland capture on GNOME; grim+slurp is the correct approach.
+    gsettings set org.gnome.shell.keybindings screenshot        "[]"
+    gsettings set org.gnome.shell.keybindings screenshot-window "[]"
 
-    # Alt+Shift+4 — area select, auto-copies to clipboard
+    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \
+        "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/']"
+
     base="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
-        name    "Flameshot area select"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
-        command "flameshot gui"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
+
+    # Alt+Shift+4 — interactive area select to clipboard
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
+        name    "Screenshot area to clipboard"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
+        command "bash -c 'grim -g \"\$(slurp)\" - | wl-copy'"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
         binding "<Shift><Alt>4"
 
-    # Alt+Shift+2 — full screen to clipboard (overrides built-in)
-    gsettings set org.gnome.shell.keybindings screenshot "[]"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
-        name    "Flameshot full screen"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
-        command "flameshot full --clipboard"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
+    # Alt+Shift+2 — full screen to clipboard
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
+        name    "Screenshot full screen to clipboard"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
+        command "bash -c 'grim - | wl-copy'"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
         binding "<Shift><Alt>2"
 
-    # Alt+Shift+3 — active window to clipboard (overrides built-in)
-    gsettings set org.gnome.shell.keybindings screenshot-window "[]"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
-        name    "Flameshot window"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
-        command "flameshot screen --clipboard"
-    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
+    # Alt+Shift+3 — active window to clipboard
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
+        name    "Screenshot window to clipboard"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
+        command "bash -c 'grim -g \"\$(slurp -w 0)\" - | wl-copy'"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
         binding "<Shift><Alt>3"
 
-    log_success "Flameshot screenshot shortcuts configured."
+    log_success "Screenshot shortcuts configured (grim+slurp+wl-copy)."
 else
-    log_warn "flameshot not found — screenshot shortcuts not configured. Install flameshot and re-run."
+    log_warn "grim or slurp not found — screenshot shortcuts not configured. Install grim slurp wl-clipboard and re-run."
 fi
 
 # ========================= Configure Dock Settings =========================

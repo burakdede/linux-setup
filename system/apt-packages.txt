@@ -42,7 +42,9 @@ ufw
 
 # Useful local development utilities
 ffmpeg
-flameshot
+grim
+slurp
+wl-clipboard
 gh
 gimp
 gnome-tweaks
