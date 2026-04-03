@@ -144,6 +144,16 @@ configure_git_identity() {
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
+    # Allow non-interactive seeding via environment variables so CI and
+    # automated setups can pre-configure git identity without a TTY.
+    if [[ -n "${LINUX_SETUP_GIT_NAME:-}" && -n "${LINUX_SETUP_GIT_EMAIL:-}" ]]; then
+        configure_git_identity
+        echo_header "Configuration complete"
+        log_success "Your machine-local settings are in $LOCAL_GITCONFIG"
+        log_info "This file is not committed — it stays on this machine only."
+        return 0
+    fi
+
     if ! is_interactive; then
         log_info "Non-interactive environment detected; skipping configure step."
         log_info "Run 'bash configure/configure.sh' manually to set up git identity."

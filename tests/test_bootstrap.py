@@ -545,26 +545,17 @@ class BootstrapRepoTests(unittest.TestCase):
         """configure.sh writes name+email to ~/.gitconfig.local, not ~/.gitconfig."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
-            # Simulate interactive input via stdin
-            user_input = "Test User\ntest@example.com\n"
-            command = textwrap.dedent(
-                f"""\
-                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
-                is_interactive() {{ return 0; }}
-                log_info() {{ :; }}
-                log_success() {{ :; }}
-                log_warn() {{ :; }}
-                echo_header() {{ :; }}
-                HOME="{tmp_dir}"
-                LOCAL_GITCONFIG="$HOME/.gitconfig.local"
-                source "{REPO_ROOT / 'configure' / 'configure.sh'}" 2>/dev/null || true
-                configure_git_identity
-                """
-            )
+            # Use env-var seeding path so the test is not sensitive to whether
+            # /dev/tty is accessible (prompt_with_default reads from /dev/tty
+            # when available, which makes piped stdin unreliable in a terminal).
+            env = os.environ.copy()
+            env["HOME"] = tmp_dir
+            env["LINUX_SETUP_GIT_NAME"] = "Test User"
+            env["LINUX_SETUP_GIT_EMAIL"] = "test@example.com"
             result = subprocess.run(
-                ["bash", "-lc", command],
+                ["bash", "configure/configure.sh"],
                 cwd=REPO_ROOT,
-                input=user_input,
+                env=env,
                 text=True,
                 capture_output=True,
                 check=False,
