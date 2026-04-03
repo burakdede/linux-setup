@@ -1,7 +1,3 @@
 # shellcheck shell=bash
 # .bash_aliases - Personal bash functions and aliases
 
-if [[ -x "$HOME/.local/bin/mise" ]]; then
-    eval "$("$HOME/.local/bin/mise" activate bash)"
-fi
-
