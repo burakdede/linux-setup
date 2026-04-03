@@ -395,6 +395,7 @@ class BootstrapRepoTests(unittest.TestCase):
                 setup_spotify_repo() {{ printf 'spotify\\n' >> "{log_file}"; }}
                 install_steam_apt() {{ printf 'steam\\n' >> "{log_file}"; }}
                 setup_tailscale_repo() {{ printf 'tailscale\\n' >> "{log_file}"; }}
+                configure_timeshift_policy() {{ printf 'timeshift\\n' >> "{log_file}"; }}
                 install_github_release_tools() {{ printf 'gh-tools\\n' >> "{log_file}"; }}
                 install_uv() {{ printf 'uv\\n' >> "{log_file}"; }}
                 install_uv_tools() {{ printf 'uv-tools\\n' >> "{log_file}"; }}
@@ -425,6 +426,7 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertIn("spotify", output)
             self.assertIn("steam", output)
             self.assertIn("tailscale", output)
+            self.assertIn("timeshift", output)
             self.assertNotIn("snaps", output)
             self.assertNotIn("chrome", output)
             self.assertNotIn("go", output)

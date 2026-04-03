@@ -231,6 +231,62 @@ setup_tailscale_repo() {
     fi
 }
 
+configure_timeshift_policy() {
+    echo_header "Timeshift"
+
+    if ! command_exists timeshift; then
+        log_warn "Timeshift is not installed. Skipping Timeshift configuration."
+        return 0
+    fi
+
+    local install_user root_uuid
+    install_user="${SUDO_USER:-$USER}"
+    root_uuid="$(findmnt -no UUID / 2>/dev/null || true)"
+
+    if [[ -z "$install_user" ]]; then
+        log_warn "Could not determine install user; skipping Timeshift configuration."
+        return 0
+    fi
+
+    # This policy focuses on system snapshots plus user dotfiles:
+    # - daily snapshots, keep 5
+    # - include only hidden files under /home/<user>
+    # - exclude regular home files
+    #
+    # Timeshift reads this config at /etc/timeshift/timeshift.json.
+    sudo_run mkdir -p /etc/timeshift
+    cat <<EOF | sudo tee /etc/timeshift/timeshift.json >/dev/null
+{
+  "backup_device_uuid" : "${root_uuid}",
+  "parent_device_uuid" : "",
+  "do_first_run" : "false",
+  "btrfs_mode" : "false",
+  "include_btrfs_home" : "false",
+  "stop_cron_emails" : "true",
+  "schedule_monthly" : "false",
+  "schedule_weekly" : "false",
+  "schedule_daily" : "true",
+  "schedule_hourly" : "false",
+  "schedule_boot" : "false",
+  "count_monthly" : "0",
+  "count_weekly" : "0",
+  "count_daily" : "5",
+  "count_hourly" : "0",
+  "count_boot" : "0",
+  "snapshot_size" : "0",
+  "snapshot_count" : "0",
+  "exclude" : [
+    "- /home/*/**",
+    "+ /home/${install_user}/.**",
+    "- /home/${install_user}/.cache/**"
+  ],
+  "exclude-apps" : [ ]
+}
+EOF
+
+    log_success "Timeshift policy configured: daily snapshots (keep 5), include /home/${install_user} hidden files only."
+}
+
 setup_docker_repo() {
     echo_header "Docker CLI and Compose"
 
@@ -600,6 +656,10 @@ main() {
 
     if ! should_skip_step TAILSCALE; then
         setup_tailscale_repo
+    fi
+
+    if ! should_skip_step TIMESHIFT; then
+        configure_timeshift_policy
     fi
 
     if ! should_skip_step GITHUB_RELEASE_TOOLS; then
