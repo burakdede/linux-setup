@@ -42,9 +42,6 @@ ufw
 
 # Useful local development utilities
 ffmpeg
-copyq
-gnome-screenshot
-wl-clipboard
 gh
 gimp
 gnome-tweaks
