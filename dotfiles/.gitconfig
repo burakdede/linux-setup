@@ -9,7 +9,7 @@
 	interactive = auto
 [core]
 	excludesfile = ~/.gitignore_global
-	editor = vim
+	editor = nvim
 	# Best practices
 	autocrlf = input
 	quotepath = false
