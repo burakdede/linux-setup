@@ -152,8 +152,20 @@ setup_spotify_repo() {
     fi
 
     sudo_run mkdir -p /etc/apt/keyrings
-    if ! curl -fsSL https://download.spotify.com/debian/pubkey_7A3A762FAFD4A51F.gpg \
-        | sudo gpg --dearmor -o /etc/apt/keyrings/spotify.gpg; then
+    # Spotify rotates signing keys periodically; try newest known key first,
+    # then fall back to the previous one for compatibility.
+    local key_installed=0
+    local key_url
+    for key_url in \
+        "https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.asc" \
+        "https://download.spotify.com/debian/pubkey_7A3A762FAFD4A51F.gpg"
+    do
+        if curl -fsSL "$key_url" | sudo gpg --dearmor --yes -o /etc/apt/keyrings/spotify.gpg; then
+            key_installed=1
+            break
+        fi
+    done
+    if [[ "$key_installed" -ne 1 ]]; then
         log_warn "Failed to install Spotify apt key. Skipping Spotify."
         return 0
     fi
