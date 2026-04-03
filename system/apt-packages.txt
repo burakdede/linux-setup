@@ -42,8 +42,7 @@ ufw
 
 # Useful local development utilities
 ffmpeg
-grim
-slurp
+gnome-screenshot
 wl-clipboard
 gh
 gimp

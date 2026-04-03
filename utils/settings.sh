@@ -440,9 +440,9 @@ gsettings set org.gnome.shell.keybindings screenshot        "['<Shift><Alt>2']"
 gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
 gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
 
-if command -v grim &>/dev/null && command -v slurp &>/dev/null; then
-    # Native Wayland screenshot stack: grim (capture) + slurp (selection) + wl-copy (clipboard).
-    # flameshot v12/Qt5 has broken Wayland capture on GNOME; grim+slurp is the correct approach.
+if command -v gnome-screenshot &>/dev/null; then
+    # gnome-screenshot uses GNOME's own portal — works correctly on GNOME/Wayland.
+    # grim+slurp requires wlroots compositor (sway etc.) and does not work on GNOME.
     gsettings set org.gnome.shell.keybindings screenshot        "[]"
     gsettings set org.gnome.shell.keybindings screenshot-window "[]"
 
@@ -457,7 +457,7 @@ if command -v grim &>/dev/null && command -v slurp &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
         name    "Screenshot area to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
-        command "bash -c 'grim -g \"\$(slurp)\" - | wl-copy'"
+        command "gnome-screenshot -ac"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/" \
         binding "<Shift><Alt>4"
 
@@ -465,7 +465,7 @@ if command -v grim &>/dev/null && command -v slurp &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
         name    "Screenshot full screen to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
-        command "bash -c 'grim - | wl-copy'"
+        command "gnome-screenshot -c"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/" \
         binding "<Shift><Alt>2"
 
@@ -473,13 +473,13 @@ if command -v grim &>/dev/null && command -v slurp &>/dev/null; then
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
         name    "Screenshot window to clipboard"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
-        command "bash -c 'grim -g \"\$(slurp -w 0)\" - | wl-copy'"
+        command "gnome-screenshot -wc"
     gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/" \
         binding "<Shift><Alt>3"
 
-    log_success "Screenshot shortcuts configured (grim+slurp+wl-copy)."
+    log_success "Screenshot shortcuts configured (gnome-screenshot)."
 else
-    log_warn "grim or slurp not found — screenshot shortcuts not configured. Install grim slurp wl-clipboard and re-run."
+    log_warn "gnome-screenshot not found — screenshot shortcuts not configured. Install gnome-screenshot and re-run."
 fi
 
 # ========================= Configure Dock Settings =========================
