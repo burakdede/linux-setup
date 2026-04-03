@@ -8,12 +8,13 @@ return {
     -- ─── Colour scheme ────────────────────────────────────────────────────────
     -- Pick one and un-comment it. More schemes: https://dotfyle.com/neovim/colorscheme
     --
-    -- {
-    --     "catppuccin/nvim",
-    --     name     = "catppuccin",
-    --     priority = 1000,
-    --     config   = function() vim.cmd.colorscheme("catppuccin-mocha") end,
-    -- },
+    {
+        "catppuccin/nvim",
+        name     = "catppuccin",
+        lazy     = false,
+        priority = 1000,
+        config   = function() vim.cmd.colorscheme("catppuccin-mocha") end,
+    },
     -- {
     --     "folke/tokyonight.nvim",
     --     priority = 1000,

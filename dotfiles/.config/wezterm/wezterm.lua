@@ -107,8 +107,10 @@ config.mouse_bindings = {
     },
 }
 
+-- ─── Colour scheme ───────────────────────────────────────────────────────────
+config.color_scheme = "Catppuccin Mocha"
+
 -- ─── Your customisations below ───────────────────────────────────────────────
--- Colour scheme:   config.color_scheme = "..."
 -- Window padding:  config.window_padding = { left = 8, right = 8, top = 6, bottom = 6 }
 
 return config
