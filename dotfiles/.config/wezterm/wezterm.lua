@@ -14,8 +14,10 @@ local login_shell = os.getenv("SHELL") or "/bin/zsh"
 config.default_prog = { login_shell, "-l" }
 
 -- ─── Terminal colour support ──────────────────────────────────────────────────
--- Report full WezTerm capabilities so neovim and tmux render colours correctly.
-config.term = "wezterm"
+-- Use xterm-256color: the "wezterm" terminfo is not shipped by the apt package
+-- so advertising TERM=wezterm causes the shell to fall back anyway, creating a
+-- mismatch that garbles Ctrl key sequences (readline Ctrl+W, Ctrl+R, etc.).
+config.term = "xterm-256color"
 -- Avoid key-repeat/input issues observed on some GNOME/Wayland setups.
 config.enable_kitty_keyboard = false
 -- Stability-first defaults on Linux desktop stacks:
