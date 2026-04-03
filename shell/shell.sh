@@ -110,6 +110,22 @@ install_shell_profile_tools() {
         antidote|antidote-p10k)
             sync_git_repo "https://github.com/mattmc3/antidote.git" "$ANTIDOTE_DIR"
             sync_git_repo "https://github.com/romkatv/powerlevel10k.git" "$P10K_DIR"
+
+            # Pre-bundle plugins so the first shell launch is fast and offline-safe.
+            local plugins_txt="${ZDOTDIR:-$HOME}/.zsh_plugins.txt"
+            local plugins_zsh="${ZDOTDIR:-$HOME}/.zsh_plugins.zsh"
+            if [[ -f "$plugins_txt" && -d "$ANTIDOTE_DIR/functions" ]]; then
+                log_info "Pre-bundling zsh plugins with antidote..."
+                local clean_txt
+                clean_txt="$(mktemp)"
+                grep -Ev '^[[:space:]]*(#|$)' "$plugins_txt" > "$clean_txt"
+                ANTIDOTE_HOME="$ANTIDOTE_DIR" \
+                    zsh -c "fpath=('$ANTIDOTE_DIR/functions' \$fpath); autoload -Uz antidote; antidote bundle < '$clean_txt'" \
+                    2>&1 | grep -Ev '^[[:space:]]*warning:' >| "$plugins_zsh" || true
+                rm -f "$clean_txt"
+                log_success "Plugins bundled to $plugins_zsh"
+            fi
+
             log_success "Configured profile: antidote+p10k"
             ;;
         z4h|zsh4humans)
