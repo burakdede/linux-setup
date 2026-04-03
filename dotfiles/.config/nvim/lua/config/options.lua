@@ -7,6 +7,10 @@
 
 local opt = vim.opt
 
+-- ─── Leader keys (must be set before any plugin loads) ────────────────────────
+vim.g.mapleader      = " "   -- <Space> as leader
+vim.g.maplocalleader = "\\"  -- <\> as local leader
+
 -- ─── Appearance ───────────────────────────────────────────────────────────────
 opt.termguicolors  = true           -- enable 24-bit colour (requires a capable terminal)
 opt.number         = true           -- absolute line numbers
