@@ -425,6 +425,60 @@ gsettings set org.gnome.shell.keybindings toggle-application-view "['<Super>a']"
 # Super+v: Toggle message tray
 gsettings set org.gnome.shell.keybindings toggle-message-tray "['<Super>v']"
 
+# ========================= Configure Screenshot Shortcuts =========================
+echo_header "Configuring screenshot shortcuts..."
+# Mirror the standard GNOME screenshot keybindings but route through flameshot
+# so screenshots are automatically copied to clipboard.
+#
+# Alt+Shift+2 — full screen screenshot to clipboard
+# Alt+Shift+3 — active window screenshot to clipboard
+# Alt+Shift+4 — interactive area select to clipboard (replaces show-screenshot-ui)
+#
+# Disable built-in GNOME screenshot UI binding for Alt+Shift+4 so flameshot
+# can own it via a custom keybinding without conflict.
+gsettings set org.gnome.shell.keybindings screenshot        "['<Shift><Alt>2']"
+gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
+gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
+
+if command -v flameshot &>/dev/null; then
+    # Register flameshot custom keybindings
+    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \
+        "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/']"
+
+    # Alt+Shift+4 — area select, auto-copies to clipboard
+    base="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
+        name    "Flameshot area select"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
+        command "flameshot gui"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-gui/" \
+        binding "<Shift><Alt>4"
+
+    # Alt+Shift+2 — full screen to clipboard (overrides built-in)
+    gsettings set org.gnome.shell.keybindings screenshot "[]"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
+        name    "Flameshot full screen"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
+        command "flameshot full --clipboard"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-full/" \
+        binding "<Shift><Alt>2"
+
+    # Alt+Shift+3 — active window to clipboard (overrides built-in)
+    gsettings set org.gnome.shell.keybindings screenshot-window "[]"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
+        name    "Flameshot window"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
+        command "flameshot screen --clipboard"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-flameshot-win/" \
+        binding "<Shift><Alt>3"
+
+    log_success "Flameshot screenshot shortcuts configured."
+else
+    log_warn "flameshot not found — screenshot shortcuts not configured. Install flameshot and re-run."
+fi
+
 # ========================= Configure Dock Settings =========================
 echo_header "Configuring Dock Settings"
 # Configure dock appearance and behavior
