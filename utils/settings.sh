@@ -553,4 +553,24 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys terminal "['<Primary>
 gsettings set org.gnome.desktop.default-applications.terminal exec 'env XMODIFIERS= wezterm'
 
 
+# ========================= Power Management =========================
+echo_header "Configuring power management"
+
+# Inactivity timeout before the screen blanks and lock screen activates.
+# Configurable via LINUX_SETUP_IDLE_DELAY_SECONDS (0 = never blank).
+IDLE_DELAY="${LINUX_SETUP_IDLE_DELAY_SECONDS:-900}"   # default: 15 minutes
+gsettings set org.gnome.desktop.session idle-delay "$IDLE_DELAY"
+
+# Lock the screen when the idle delay fires, but do NOT suspend/sleep.
+gsettings set org.gnome.desktop.screensaver lock-enabled true
+# Show lock screen immediately when blanking (0-second grace period).
+gsettings set org.gnome.desktop.screensaver lock-delay 0
+
+# Prevent the system from suspending due to inactivity on AC power.
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+# Same for battery — keeps compute running even when unplugged.
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+
+log_success "Power management configured: lock screen after ${IDLE_DELAY}s idle, suspend disabled."
+
 log_success "Ubuntu settings configuration completed successfully!"
