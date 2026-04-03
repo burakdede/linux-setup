@@ -153,8 +153,7 @@ return {
 
             -- ── Capabilities (extended by nvim-cmp) ───────────────────────────
             local capabilities = vim.lsp.protocol.make_client_capabilities()
-            -- Uncomment after adding nvim-cmp:
-            -- capabilities = require("cmp_nvim_lsp").default_capabilities(capabilities)
+            capabilities = require("cmp_nvim_lsp").default_capabilities(capabilities)
 
             -- ── Setup each server (mason-lspconfig v2 compatible) ────────────
             local lspconfig = require("lspconfig")
