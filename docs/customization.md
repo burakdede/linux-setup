@@ -74,6 +74,32 @@ Notes:
 - Use `LINUX_SETUP_FONT_RGBA_ORDER=bgr` only if your panel subpixel layout is BGR.
 - On high-DPI screens, `slight` hinting is usually cleaner than `full`.
 
+## Wallpapers (Desktop + Login Screen)
+
+The settings step can configure both:
+
+- Desktop wallpaper (`org.gnome.desktop.background`)
+- Login screen wallpaper (GDM dconf profile)
+
+Default image locations (relative to repo root):
+
+- `assets/wallpapers/desktop.jpg`
+- `assets/wallpapers/login.jpg`
+
+Override with environment variables:
+
+```bash
+LINUX_SETUP_DESKTOP_WALLPAPER_PATH=/absolute/path/my-desktop.jpg \
+LINUX_SETUP_LOGIN_WALLPAPER_PATH=/absolute/path/my-login.jpg \
+./run.sh --include-settings
+```
+
+Notes:
+
+- Relative paths are resolved from the repository root.
+- Login wallpaper setup writes system files under `/etc/dconf` and `/usr/share/backgrounds`, so it requires `sudo`.
+- If either image is missing, setup logs a warning and continues.
+
 ## Manifests
 
 Most package decisions live in text manifests:

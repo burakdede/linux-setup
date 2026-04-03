@@ -87,6 +87,105 @@ set_schema_value() {
     fi
 }
 
+resolve_wallpaper_path() {
+    local input_path="$1"
+    local repo_root="$2"
+
+    if [[ -z "$input_path" ]]; then
+        return 1
+    fi
+
+    case "$input_path" in
+        ~/*)
+            printf '%s\n' "$HOME/${input_path#~/}"
+            ;;
+        /*)
+            printf '%s\n' "$input_path"
+            ;;
+        *)
+            printf '%s\n' "$repo_root/$input_path"
+            ;;
+    esac
+}
+
+to_file_uri() {
+    local path="$1"
+    # Minimal escaping for common local paths.
+    printf 'file://%s\n' "${path// /%20}"
+}
+
+configure_wallpapers() {
+    echo_header "Configuring Wallpapers"
+    local repo_root desktop_input login_input desktop_path login_path
+    local desktop_uri login_uri login_target login_ext
+    local tmp_profile tmp_db
+
+    repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
+    desktop_input="${LINUX_SETUP_DESKTOP_WALLPAPER_PATH:-assets/wallpapers/desktop.jpg}"
+    login_input="${LINUX_SETUP_LOGIN_WALLPAPER_PATH:-assets/wallpapers/login.jpg}"
+
+    desktop_path="$(resolve_wallpaper_path "$desktop_input" "$repo_root")"
+    if [[ -f "$desktop_path" ]]; then
+        desktop_uri="$(to_file_uri "$desktop_path")"
+        gsettings set org.gnome.desktop.background picture-uri "$desktop_uri"
+        gsettings set org.gnome.desktop.background picture-uri-dark "$desktop_uri"
+        gsettings set org.gnome.desktop.background picture-options 'zoom'
+        gsettings set org.gnome.desktop.screensaver picture-uri "$desktop_uri"
+        gsettings set org.gnome.desktop.screensaver picture-options 'zoom'
+        log_success "Desktop wallpaper configured from $desktop_path"
+    else
+        log_warn "Desktop wallpaper not found at $desktop_path; skipping desktop wallpaper setup."
+    fi
+
+    login_path="$(resolve_wallpaper_path "$login_input" "$repo_root")"
+    if [[ ! -f "$login_path" ]]; then
+        log_warn "Login wallpaper not found at $login_path; skipping login wallpaper setup."
+        return 0
+    fi
+
+    login_ext="${login_path##*.}"
+    login_target="/usr/share/backgrounds/linux-setup-login.${login_ext}"
+    login_uri="$(to_file_uri "$login_target")"
+
+    tmp_profile="$(mktemp)"
+    tmp_db="$(mktemp)"
+    cat > "$tmp_profile" <<'EOF'
+user-db:user
+system-db:gdm
+file-db:/usr/share/gdm/greeter-dconf-defaults
+EOF
+
+    cat > "$tmp_db" <<EOF
+[com/ubuntu/login-screen]
+background-picture-uri='${login_uri}'
+
+[org/gnome/desktop/screensaver]
+picture-uri='${login_uri}'
+EOF
+
+    if ! sudo_run mkdir -p /etc/dconf/profile /etc/dconf/db/gdm.d /usr/share/backgrounds; then
+        log_warn "Failed to prepare system directories for login wallpaper."
+        rm -f "$tmp_profile" "$tmp_db"
+        return 0
+    fi
+    if ! sudo_run cp "$login_path" "$login_target"; then
+        log_warn "Failed to copy login wallpaper to $login_target."
+        rm -f "$tmp_profile" "$tmp_db"
+        return 0
+    fi
+    sudo_run chmod 644 "$login_target"
+    sudo_run install -m 644 "$tmp_profile" /etc/dconf/profile/gdm
+    sudo_run install -m 644 "$tmp_db" /etc/dconf/db/gdm.d/01-background
+    if ! sudo_run dconf update; then
+        log_warn "Failed to run dconf update for login wallpaper."
+        rm -f "$tmp_profile" "$tmp_db"
+        return 0
+    fi
+
+    rm -f "$tmp_profile" "$tmp_db"
+    log_success "Login screen wallpaper configured from $login_path"
+}
+
 configure_gnome_extensions() {
     # ========================= Configure GNOME Extensions =========================
     echo_header "Setting up GNOME Extensions"
@@ -200,7 +299,7 @@ gsettings set org.gnome.desktop.interface font-antialiasing "$FONT_ANTIALIASING"
 gsettings set org.gnome.desktop.interface font-hinting "$FONT_HINTING"
 gsettings set org.gnome.desktop.interface monospace-font-name "$MONOSPACE_FONT"
 
-
+configure_wallpapers
 
 # ========================= Configure Workspace Settings =========================
 # This section sets up the multi-workspace environment with 4 workspaces
