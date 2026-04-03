@@ -298,7 +298,7 @@ install_jetbrains_toolbox() {
         return 0
     fi
 
-    local metadata_url metadata_file download_url temp_dir archive_path extracted_dir toolbox_exec
+    local metadata_url metadata_file download_url temp_dir archive_path extracted_dir toolbox_exec top_entry top_dir
     metadata_url="https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release"
     temp_dir="$(mktemp -d)"
     # shellcheck disable=SC2064
@@ -323,8 +323,15 @@ install_jetbrains_toolbox() {
     fi
 
     mkdir -p "$install_root" "$HOME/.local/bin"
+    top_entry="$(tar -tzf "$archive_path" | head -n1 || true)"
+    top_dir="${top_entry%%/*}"
     tar -xzf "$archive_path" -C "$temp_dir"
-    extracted_dir="$(find "$temp_dir" -maxdepth 1 -type d -name 'jetbrains-toolbox-*' | head -n1)"
+
+    if [[ -n "$top_dir" && -d "$temp_dir/$top_dir" ]]; then
+        extracted_dir="$temp_dir/$top_dir"
+    else
+        extracted_dir="$(find "$temp_dir" -mindepth 1 -maxdepth 1 -type d | head -n1)"
+    fi
     if [[ -z "$extracted_dir" ]]; then
         log_warn "Could not extract JetBrains Toolbox archive. Skipping."
         return 0
@@ -335,6 +342,17 @@ install_jetbrains_toolbox() {
 
     toolbox_exec="$install_root/jetbrains-toolbox"
     if [[ ! -x "$toolbox_exec" ]]; then
+        if [[ -x "$install_root/bin/jetbrains-toolbox" ]]; then
+            toolbox_exec="$install_root/bin/jetbrains-toolbox"
+        else
+            toolbox_exec="$(find "$install_root" -maxdepth 4 -type f -name 'jetbrains-toolbox' | head -n1 || true)"
+            if [[ -n "$toolbox_exec" && ! -x "$toolbox_exec" ]]; then
+                chmod +x "$toolbox_exec" || true
+            fi
+        fi
+    fi
+
+    if [[ -z "$toolbox_exec" || ! -x "$toolbox_exec" ]]; then
         log_warn "JetBrains Toolbox binary not found after install. Skipping."
         return 0
     fi
