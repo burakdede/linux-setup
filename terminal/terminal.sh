@@ -145,6 +145,32 @@ install_wezterm() {
     return 0
 }
 
+install_wezterm_desktop_override() {
+    # On GNOME/X11 sessions, XMODIFIERS=@im=ibus is injected by im-config.
+    # WezTerm's winit backend connects to the iBus XIM server based on this env
+    # var before the Lua config is read, causing double key-event processing
+    # (duplicate/dropped keystrokes).  use_ime=false in wezterm.lua is not
+    # sufficient — it only prevents IME text composition, not the XIM connection.
+    #
+    # Fix: user-level .desktop override that launches WezTerm with XMODIFIERS
+    # cleared, scoped only to WezTerm so iBus still works for other apps.
+    local desktop_dir="$HOME/.local/share/applications"
+    local desktop_file="$desktop_dir/org.wezfurlong.wezterm.desktop"
+    local system_desktop="/usr/share/applications/org.wezfurlong.wezterm.desktop"
+
+    if [[ ! -f "$system_desktop" ]]; then
+        log_info "System WezTerm .desktop not found; skipping desktop override."
+        return 0
+    fi
+
+    mkdir -p "$desktop_dir"
+    sed 's|^Exec=wezterm |Exec=env XMODIFIERS= wezterm |' "$system_desktop" > "$desktop_file"
+    if command_exists update-desktop-database; then
+        update-desktop-database "$desktop_dir" 2>/dev/null || true
+    fi
+    log_success "WezTerm .desktop override installed (XMODIFIERS cleared for WezTerm)."
+}
+
 set_default_terminal() {
     if ! command_exists wezterm; then
         log_warn "WezTerm binary not found; skipping default terminal configuration."
@@ -160,6 +186,8 @@ set_default_terminal() {
         log_info "gsettings not available; skipping default terminal configuration."
         return 0
     fi
+
+    install_wezterm_desktop_override
 
     log_info "Setting WezTerm as the default GNOME terminal..."
     gsettings set org.gnome.desktop.default-applications.terminal exec 'wezterm'
