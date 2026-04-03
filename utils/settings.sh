@@ -440,6 +440,42 @@ gsettings set org.gnome.shell.keybindings screenshot        "['<Shift><Alt>2']"
 gsettings set org.gnome.shell.keybindings screenshot-window "['<Shift><Alt>3']"
 gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
 
+# ========================= Configure CopyQ Clipboard Manager =========================
+echo_header "Configuring CopyQ clipboard manager..."
+if command -v copyq &>/dev/null; then
+    # Autostart CopyQ on login
+    mkdir -p "$HOME/.config/autostart"
+    cat > "$HOME/.config/autostart/copyq.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=CopyQ
+Exec=copyq
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Comment=Advanced clipboard manager
+EOF
+
+    # Global shortcut: Super+V to open CopyQ history
+    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \
+        "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-area/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-full/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-screenshot-win/', \
+          '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-copyq/']"
+
+    base="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-copyq/" \
+        name    "CopyQ clipboard history"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-copyq/" \
+        command "copyq toggle"
+    gsettings set "${base}:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom-copyq/" \
+        binding "<Super>v"
+
+    log_success "CopyQ configured (autostart + Super+V shortcut)."
+else
+    log_warn "copyq not found — skipping clipboard manager setup."
+fi
+
 mkdir -p "$HOME/Pictures/Screenshots"
 
 if command -v gnome-screenshot &>/dev/null; then
