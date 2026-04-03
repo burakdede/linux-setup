@@ -18,6 +18,12 @@ config.default_prog = { login_shell, "-l" }
 -- the apt package on Ubuntu, so TERM=wezterm causes ncurses fallback and garbled
 -- Ctrl sequences. Use wezterm-256color only when the terminfo is confirmed present.
 config.term = "xterm-256color"
+-- Disable kitty keyboard protocol — causes key-repeat/input jitter with
+-- autocomplete on GNOME/Wayland setups.
+config.enable_kitty_keyboard = false
+-- Run under XWayland rather than native Wayland backend to avoid input
+-- duplication and rendering glitches on GNOME/Wayland.
+config.enable_wayland = false
 
 -- ─── Scrollback ───────────────────────────────────────────────────────────────
 config.scrollback_lines = 10000
@@ -28,6 +34,14 @@ config.hide_tab_bar_if_only_one_tab = true
 -- ─── Font ─────────────────────────────────────────────────────────────────────
 config.font = wezterm.font("JetBrainsMono Nerd Font")
 config.font_size = 13.0
+
+-- Font rendering quality.
+-- freetype_load_target controls hinting — "Normal" gives crisp baselines on
+-- non-HiDPI displays; switch to "Light" if text feels too heavy.
+-- freetype_render_target "HorizontalLcd" enables RGB subpixel rendering which
+-- makes whites whiter and edges sharper on LCD panels.
+config.freetype_load_target    = "Normal"
+config.freetype_render_target  = "HorizontalLcd"
 
 -- ─── Key bindings ─────────────────────────────────────────────────────────────
 -- WezTerm's defaults intercept many Ctrl+letter combos that readline/zsh rely

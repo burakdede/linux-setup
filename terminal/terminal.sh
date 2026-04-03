@@ -110,7 +110,7 @@ install_wezterm() {
     got="$(installed_wezterm_version)"
 
     if [[ -n "$got" ]] && ! upgrade_enabled; then
-        if [[ -z "$want" || "$got" == "$want" ]]; then
+        if [[ -z "$want" || "$want" == "nightly" || "$got" == "$want" ]]; then
             log_info "WezTerm $got is already installed. (LINUX_SETUP_UPGRADE=1 to reinstall)"
             return 0
         fi

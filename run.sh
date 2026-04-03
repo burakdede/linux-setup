@@ -210,7 +210,7 @@ main() {
     export LINUX_SETUP_FONT_RGBA_ORDER="${LINUX_SETUP_FONT_RGBA_ORDER:-rgb}"
     export LINUX_SETUP_FONT_ANTIALIASING="${LINUX_SETUP_FONT_ANTIALIASING:-rgba}"
     export LINUX_SETUP_FONT_HINTING="${LINUX_SETUP_FONT_HINTING:-slight}"
-    export LINUX_SETUP_MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 12}"
+    export LINUX_SETUP_MONOSPACE_FONT="${LINUX_SETUP_MONOSPACE_FONT:-JetBrainsMono Nerd Font 13}"
 
     local step_name
     local -a steps=(
