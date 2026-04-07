@@ -376,25 +376,46 @@ EOF
 }
 
 setup_docker_repo() {
-    echo_header "Docker CLI and Compose"
+    echo_header "Docker Engine, CLI and Compose"
 
-    if dpkg -s docker-ce-cli >/dev/null 2>&1 && dpkg -s docker-compose-plugin >/dev/null 2>&1; then
-        log_info "Docker CLI and Compose plugin are already installed."
-        return 0
+    if ! dpkg -s docker-ce >/dev/null 2>&1 || ! dpkg -s docker-ce-cli >/dev/null 2>&1 \
+        || ! dpkg -s containerd.io >/dev/null 2>&1 || ! dpkg -s docker-compose-plugin >/dev/null 2>&1; then
+
+        sudo_run mkdir -p /etc/apt/keyrings
+        # --yes overwrites existing keyring file on re-runs without prompting
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+            | sudo gpg --yes --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo_run chmod a+r /etc/apt/keyrings/docker.gpg
+
+        local codename
+        # shellcheck source=/dev/null
+        codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
+        printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' \
+            "$(dpkg --print-architecture)" "$codename" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+
+        sudo_run apt-get update
+        sudo_run apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        log_success "Docker Engine installed."
+    else
+        log_info "Docker Engine and Compose plugin are already installed."
     fi
 
-    sudo_run mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo_run chmod a+r /etc/apt/keyrings/docker.gpg
+    # Ensure daemon is enabled and running regardless of whether we just installed it.
+    sudo_run systemctl enable docker
+    if ! sudo systemctl is-active --quiet docker; then
+        sudo_run systemctl start docker
+        log_info "Docker daemon started."
+    fi
 
-    local codename
-    # shellcheck source=/dev/null
-    codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
-    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' \
-        "$(dpkg --print-architecture)" "$codename" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    # Add current user to docker group so docker can be used without sudo.
+    if ! id -nG "$USER" | grep -qw docker; then
+        sudo_run usermod -aG docker "$USER"
+        log_info "Added $USER to docker group — re-login or run 'newgrp docker' to apply."
+    else
+        log_info "$USER is already in the docker group."
+    fi
 
-    sudo_run apt-get update
-    sudo_run apt-get install -y docker-ce-cli docker-buildx-plugin docker-compose-plugin
+    log_success "Docker setup complete."
 }
 
 download_latest_release_asset() {
