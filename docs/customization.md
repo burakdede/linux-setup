@@ -28,6 +28,7 @@ Available skip flags:
 | `LINUX_SETUP_SKIP_GO` | Go toolchain via `mise` |
 | `LINUX_SETUP_SKIP_PYTHON` | Python toolchain via `mise` |
 | `LINUX_SETUP_SKIP_RUST` | Rust toolchain via `rustup` |
+| `LINUX_SETUP_SKIP_IAC_TOOLS` | IaC tooling via `mise` (`terraform`, `tflint`, `terragrunt`, `terraform-docs`) |
 | `LINUX_SETUP_SKIP_UFW` | firewall setup |
 | `LINUX_SETUP_SKIP_WEZTERM` | terminal installation in verification and smoke flows |
 | `LINUX_SETUP_SKIP_NEOVIM` | editor installation in verification and smoke flows |
@@ -124,6 +125,10 @@ This is the right place to update:
 - Go
 - Python
 - Rust
+- Terraform
+- TFLint
+- Terragrunt
+- terraform-docs
 - Neovim
 - WezTerm
 - Nerd Fonts

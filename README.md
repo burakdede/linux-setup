@@ -15,8 +15,10 @@ Running the default bootstrap installs a practical base layer for coding work:
 - `uv` plus Python-based developer tools
 - `mise` with pinned Node, Go, and Python toolchains
 - `rustup` with a pinned Rust toolchain
+- pinned IaC tooling via `mise`: `terraform`, `tflint`, `terragrunt`, `terraform-docs`
 - terminal coding tools such as Codex, Claude Code, Gemini CLI, `eslint`, and `prettier`
 - zsh shell profiles with two fast prompt/plugin options: `antidote+p10k` (default) and `zsh4humans`
+- Terraform autocomplete in zsh
 - dotfiles, shell, editor, terminal, tmux, SDK, and agent configuration steps
 
 Default run includes all steps (including GitHub SSH setup and GNOME settings).

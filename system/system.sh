@@ -22,6 +22,10 @@ NODE_VERSION="${NODE_VERSION:-24.14.1}"
 GO_VERSION="${GO_VERSION:-1.26.1}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.13.12}"
 RUST_VERSION="${RUST_VERSION:-1.94.1}"
+TERRAFORM_VERSION="${TERRAFORM_VERSION:-1.8.5}"
+TFLINT_VERSION="${TFLINT_VERSION:-0.53.0}"
+TERRAGRUNT_VERSION="${TERRAGRUNT_VERSION:-0.67.16}"
+TERRAFORM_DOCS_VERSION="${TERRAFORM_DOCS_VERSION:-0.18.0}"
 
 flag_enabled() {
     local value="${1:-0}"
@@ -659,6 +663,30 @@ install_rust() {
     rustup default "$RUST_VERSION"
 }
 
+install_iac_tools() {
+    echo_header "IaC tools via mise"
+    install_mise
+
+    local tool_spec tool_name tool_version
+    local tool_specs=(
+        "terraform@${TERRAFORM_VERSION}"
+        "tflint@${TFLINT_VERSION}"
+        "terragrunt@${TERRAGRUNT_VERSION}"
+        "terraform-docs@${TERRAFORM_DOCS_VERSION}"
+    )
+
+    for tool_spec in "${tool_specs[@]}"; do
+        tool_name="${tool_spec%%@*}"
+        tool_version="${tool_spec#*@}"
+        if [[ -z "$tool_version" ]]; then
+            log_warn "Missing version pin for ${tool_name}; skipping."
+            continue
+        fi
+        log_info "Installing ${tool_name} ${tool_version} via mise"
+        "$MISE_BIN" use --global "${tool_name}@${tool_version}"
+    done
+}
+
 install_npm_clis() {
     echo_header "Node-based tooling"
 
@@ -802,6 +830,10 @@ main() {
 
     if ! should_skip_step RUST; then
         install_rust
+    fi
+
+    if ! should_skip_step IAC_TOOLS; then
+        install_iac_tools
     fi
 
     if ! should_skip_step UFW; then

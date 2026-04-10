@@ -405,6 +405,7 @@ class BootstrapRepoTests(unittest.TestCase):
                 install_go_runtime() {{ printf 'go\\n' >> "{log_file}"; }}
                 install_python_runtime() {{ printf 'python\\n' >> "{log_file}"; }}
                 install_rust() {{ printf 'rust\\n' >> "{log_file}"; }}
+                install_iac_tools() {{ printf 'iac\\n' >> "{log_file}"; }}
                 setup_ufw() {{ printf 'ufw\\n' >> "{log_file}"; }}
                 echo_header() {{ :; }}
                 log_success() {{ :; }}
@@ -413,6 +414,7 @@ class BootstrapRepoTests(unittest.TestCase):
                 export LINUX_SETUP_SKIP_GO=1
                 export LINUX_SETUP_SKIP_PYTHON=1
                 export LINUX_SETUP_SKIP_RUST=1
+                export LINUX_SETUP_SKIP_IAC_TOOLS=1
                 export LINUX_SETUP_SKIP_UFW=1
                 main
                 """
@@ -434,6 +436,7 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertNotIn("go", output)
             self.assertNotIn("python", output)
             self.assertNotIn("rust", output)
+            self.assertNotIn("iac", output)
             self.assertNotIn("ufw", output)
 
     def test_dotfiles_script_is_idempotent(self):
@@ -649,11 +652,17 @@ class BootstrapRepoTests(unittest.TestCase):
         self.assertIn('"node@${NODE_VERSION}"', system_script)
         self.assertIn('"go@${GO_VERSION}"', system_script)
         self.assertIn('"python@${PYTHON_VERSION}"', system_script)
+        self.assertIn('"terraform@${TERRAFORM_VERSION}"', system_script)
+        self.assertIn('"tflint@${TFLINT_VERSION}"', system_script)
+        self.assertIn('"terragrunt@${TERRAGRUNT_VERSION}"', system_script)
+        self.assertIn('"terraform-docs@${TERRAFORM_DOCS_VERSION}"', system_script)
         self.assertIn("MISE_PYTHON_PRECOMPILED_FLAVOR=install_only_stripped", system_script)
         self.assertIn('rustup toolchain install "$RUST_VERSION"', system_script)
         self.assertNotIn("node@lts", system_script)
         self.assertNotIn("go@latest", system_script)
         self.assertNotIn("python@latest", system_script)
+        self.assertNotIn("terraform@latest", system_script)
+        self.assertNotIn("tflint@latest", system_script)
         self.assertNotIn("update stable --no-self-update", system_script)
 
     def test_wezterm_config_is_valid_lua(self):

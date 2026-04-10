@@ -44,6 +44,39 @@ zmodload zsh/complist
 mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/.zcompdump-${ZSH_VERSION}"
 
+# IaC completions.
+# - terraform: bash-style completion bridged into zsh.
+# - terragrunt/terraform-docs: native zsh completion generated and cached.
+source_cli_zsh_completion() {
+    local cmd="$1"
+    shift
+
+    command -v "$cmd" >/dev/null 2>&1 || return 0
+
+    local completion_dir="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/completions"
+    local completion_file="$completion_dir/_$cmd"
+    local temp_file="${completion_file}.tmp"
+    mkdir -p "$completion_dir"
+
+    if "$cmd" "$@" >| "$temp_file" 2>/dev/null && [[ -s "$temp_file" ]]; then
+        mv "$temp_file" "$completion_file"
+        source "$completion_file"
+    else
+        rm -f "$temp_file"
+    fi
+}
+
+if command -v terraform >/dev/null 2>&1; then
+    autoload -Uz bashcompinit
+    if ! typeset -f complete >/dev/null 2>&1; then
+        bashcompinit
+    fi
+    complete -o nospace -C "$(command -v terraform)" terraform
+fi
+
+source_cli_zsh_completion terragrunt completion zsh
+source_cli_zsh_completion terraform-docs completion zsh
+
 # ─── History ──────────────────────────────────────────────────────────────────
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000
