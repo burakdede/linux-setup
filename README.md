@@ -11,7 +11,7 @@ Running the default bootstrap installs a practical base layer for coding work:
 - command compatibility symlinks for `fd` and `bat`
 - Google Chrome from the official Google repository
 - Docker CLI and Compose plugin from the official Docker repository
-- selected standalone tools from GitHub releases such as `yq`, `eza`, `sd`, and `scc`
+- selected standalone tools from GitHub releases such as `yq`, `eza`, `sd`, `scc`, and `hcloud`
 - `uv` plus Python-based developer tools
 - `mise` with pinned Node, Go, and Python toolchains
 - `rustup` with a pinned Rust toolchain

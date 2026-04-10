@@ -41,6 +41,7 @@ fi
 # ─── Completion ───────────────────────────────────────────────────────────────
 autoload -Uz compinit
 zmodload zsh/complist
+fpath+=("${XDG_CONFIG_HOME:-$HOME/.config}/hcloud/completion/zsh")
 mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/.zcompdump-${ZSH_VERSION}"
 

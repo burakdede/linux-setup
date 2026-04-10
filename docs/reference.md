@@ -7,6 +7,7 @@ This repository treats the following categories as the essential base layer for 
 - search and navigation: `rg`, `fd`, `tree`, `fzf`, `eza`
 - file inspection and structured parsing: `bat`, `jq`, `yq`
 - text transforms and repo understanding: `sd`, `scc`
+- cloud infrastructure CLI: `hcloud`
 - quality gates: `shellcheck`, `pre-commit`, `ruff`, `yamllint`, `eslint`, `prettier`
 - infrastructure as code: pinned `terraform`, `tflint`, `terragrunt`, `terraform-docs`
 - coding agents: `codex`, `claude`, `gemini`

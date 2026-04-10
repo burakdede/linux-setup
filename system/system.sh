@@ -529,6 +529,26 @@ install_github_release_tools() {
     done < "$GITHUB_TOOLS_FILE"
 }
 
+setup_hcloud_zsh_completion() {
+    echo_header "hcloud zsh completion"
+
+    if ! command_exists hcloud; then
+        log_warn "hcloud is not installed; skipping zsh completion setup."
+        return 0
+    fi
+
+    # Official hcloud docs recommend generating completion into this path.
+    local completion_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hcloud/completion/zsh"
+    local completion_file="$completion_dir/_hcloud"
+
+    mkdir -p "$completion_dir"
+    if hcloud completion zsh > "$completion_file"; then
+        log_success "hcloud zsh completion generated at $completion_file"
+    else
+        log_warn "Failed to generate hcloud zsh completion."
+    fi
+}
+
 install_uv() {
     echo_header "uv"
 
@@ -806,6 +826,8 @@ main() {
     if ! should_skip_step GITHUB_RELEASE_TOOLS; then
         install_github_release_tools
     fi
+
+    setup_hcloud_zsh_completion
 
     if ! should_skip_step UV; then
         install_uv
