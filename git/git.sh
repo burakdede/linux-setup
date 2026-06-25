@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
-# GitHub SSH Key Setup Script - Fixed Version
+# GitHub SSH key setup — works on macOS and Linux.
+#
+# Generates an ed25519 SSH key, loads it into the agent, copies the public key
+# to the clipboard, and tests the GitHub connection.
+#
+# ── This step is optional ────────────────────────────────────────────────────
+# Skip it with --skip-git when running headlessly (CI, first-time bootstrap
+# without browser access).  Run it manually later:
+#   bash git/git.sh
+#
+# Git identity (name/email) is configured separately by the configure step,
+# which writes to ~/.gitconfig.local (not to the committed ~/.gitconfig).
 
-# Exit on error
-set -e
+set -euo pipefail
 
-# Directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source common functions
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/../utils/utils.sh"
 
@@ -23,303 +30,140 @@ github_ssh_auth_works() {
     fi
     set -e
 
-    # GitHub returns code 1 for successful auth with no shell access.
     if echo "$ssh_output" | grep -q "successfully authenticated"; then
         return 0
     fi
-
-    # Treat explicit permission/network failures as not-ready.
-    if [[ $ssh_exit_code -ne 0 ]]; then
-        return 1
-    fi
-
     return 1
 }
 
-# Check if git is installed
-echo_header "Checking Git Installation"
-if ! command_exists git; then
-    log_error "Git is not installed. Please install it first."
-    exit 1
-fi
-log_success "Git is installed."
-
-# Prompt for git identity
-echo_header "Git Identity"
-existing_name=$(git config --global user.name 2>/dev/null || echo "")
-existing_email=$(git config --global user.email 2>/dev/null || echo "")
-
-if [[ -n "$existing_name" ]]; then
-    read -r -p "Git name [${existing_name}]: " input_name
-    name="${input_name:-$existing_name}"
-else
-    read -r -p "Git name: " name
-fi
-
-if [[ -z "$name" ]]; then
-    log_error "Git name cannot be empty."
-    exit 1
-fi
-
-if [[ -n "$existing_email" ]]; then
-    read -r -p "Git email [${existing_email}]: " input_email
-    email="${input_email:-$existing_email}"
-else
-    read -r -p "Git email: " email
-fi
-
-if [[ ! "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
-    log_error "Invalid email format: $email"
-    exit 1
-fi
-
-git config --global user.name "$name"
-git config --global user.email "$email"
-log_success "Git identity set: ${name} <${email}>"
-
-# Ensure SSH directory exists with proper permissions
-echo_header "Setting Up SSH Directory"
-if [ ! -d ~/.ssh ]; then
-    log_info "Creating ~/.ssh directory"
+setup_ssh_key() {
+    echo_header "SSH key"
     mkdir -p ~/.ssh
-fi
-chmod 700 ~/.ssh
+    chmod 700 ~/.ssh
 
-# Configure SSH for GitHub
-echo_header "Configuring SSH for GitHub"
-
-# Check if SSH key already exists
-if [ -f ~/.ssh/id_ed25519 ]; then
-    log_warn "SSH key already exists. Verifying..."
-    
-    # Verify key permissions
-        if [ "$(stat -c %a ~/.ssh/id_ed25519)" -ne 600 ]; then
-        log_info "Fixing SSH private key permissions"
+    if [[ -f ~/.ssh/id_ed25519 ]]; then
+        log_warn "SSH key already exists at ~/.ssh/id_ed25519"
         chmod 600 ~/.ssh/id_ed25519
-    fi
-    
-    # Verify public key permissions
-    if [ -f ~/.ssh/id_ed25519.pub ]; then
-        if [ "$(stat -c %a ~/.ssh/id_ed25519.pub)" -ne 644 ]; then
-            log_info "Fixing SSH public key permissions"
-            chmod 644 ~/.ssh/id_ed25519.pub
-        fi
+        [[ -f ~/.ssh/id_ed25519.pub ]] && chmod 644 ~/.ssh/id_ed25519.pub
     else
-        log_error "Private key exists but public key is missing"
-        exit 1
-    fi
-else
-    log_info "Generating new SSH key for GitHub"
-    
-    # Generate SSH key with comment
-    if ! ssh-keygen -t ed25519 -C "$email" -f ~/.ssh/id_ed25519 -N ""; then
-        log_error "Failed to generate SSH key"
-        exit 1
-    fi
-    
-    # Set proper permissions
-    chmod 600 ~/.ssh/id_ed25519
-    chmod 644 ~/.ssh/id_ed25519.pub
-fi
-
-# Configure SSH agent (consolidated single approach)
-echo_header "Configuring SSH Agent"
-
-# Check if we have an active SSH agent with our key
-key_loaded=false
-if [ -n "$SSH_AGENT_PID" ] && kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
-    # Agent is running, check if our key is loaded
-    if ssh-add -l 2>/dev/null | grep -q "id_ed25519"; then
-        log_success "SSH agent is running with our key already loaded"
-        key_loaded=true
-    fi
-fi
-
-# Start agent or add key if needed
-if [ "$key_loaded" = false ]; then
-    # Start SSH agent if not running
-    if [ -z "$SSH_AGENT_PID" ] || ! kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
-        log_info "Starting SSH agent"
-        eval "$(ssh-agent -s)"
-    fi
-    
-    # Add SSH key to agent
-    if [ -f ~/.ssh/id_ed25519 ]; then
-        log_info "Adding SSH key to agent"
-        if ! ssh-add ~/.ssh/id_ed25519; then
-            log_error "Failed to add SSH key to agent"
-            exit 1
+        local local_email
+        local_email="$(git config --global user.email 2>/dev/null || echo "")"
+        if [[ -z "$local_email" ]]; then
+            log_warn "No git email configured. Run the configure step first."
+            local_email="user@example.com"
         fi
-    else
-        log_error "No SSH key found to add to agent"
-        exit 1
+        log_info "Generating ed25519 SSH key (comment: $local_email)..."
+        ssh-keygen -t ed25519 -C "$local_email" -f ~/.ssh/id_ed25519 -N ""
+        chmod 600 ~/.ssh/id_ed25519
+        chmod 644 ~/.ssh/id_ed25519.pub
     fi
-fi
+}
 
-# If SSH auth already works, skip the repetitive copy/browser/manual-test flow.
-if github_ssh_auth_works; then
-    echo_header "GitHub SSH"
-    log_success "GitHub SSH authentication is already working."
-    log_info "Skipping key copy, browser setup instructions, and interactive SSH test."
-    exit 0
-fi
+load_ssh_agent() {
+    echo_header "SSH agent"
+    local key_loaded=false
 
-# Copy key to clipboard
-echo_header "Copying SSH Key to Clipboard"
-if [ -f ~/.ssh/id_ed25519.pub ]; then
-    # Try common clipboard tools across Linux/macOS/Wayland.
-    if command -v xclip &> /dev/null; then
-        if xclip -sel clip < ~/.ssh/id_ed25519.pub; then
-            log_success "SSH public key copied to clipboard using xclip"
+    if [[ -n "${SSH_AGENT_PID:-}" ]] && kill -0 "$SSH_AGENT_PID" 2>/dev/null; then
+        if ssh-add -l 2>/dev/null | grep -q "id_ed25519"; then
+            log_success "Key already loaded in SSH agent."
+            key_loaded=true
+        fi
+    fi
+
+    if [[ "$key_loaded" == "false" ]]; then
+        if [[ -z "${SSH_AGENT_PID:-}" ]] || ! kill -0 "${SSH_AGENT_PID:-0}" 2>/dev/null; then
+            eval "$(ssh-agent -s)"
+        fi
+        ssh-add ~/.ssh/id_ed25519
+    fi
+}
+
+add_key_to_github() {
+    echo_header "Add key to GitHub"
+
+    if [[ -f ~/.ssh/id_ed25519.pub ]]; then
+        if command_exists wl-copy; then
+            wl-copy < ~/.ssh/id_ed25519.pub
+            log_success "SSH public key copied to clipboard (wl-copy)."
+        elif command_exists xclip; then
+            xclip -selection clipboard < ~/.ssh/id_ed25519.pub
+            log_success "SSH public key copied to clipboard (xclip)."
+        elif command_exists xsel; then
+            xsel --clipboard < ~/.ssh/id_ed25519.pub
+            log_success "SSH public key copied to clipboard (xsel)."
+        elif command_exists pbcopy; then
+            pbcopy < ~/.ssh/id_ed25519.pub
+            log_success "SSH public key copied to clipboard (pbcopy)."
         else
-            log_warn "Failed to copy key to clipboard with xclip"
+            log_info "Public key content (copy and paste to GitHub):"
+            cat ~/.ssh/id_ed25519.pub
         fi
-    elif command -v wl-copy &> /dev/null; then
-        if wl-copy < ~/.ssh/id_ed25519.pub; then
-            log_success "SSH public key copied to clipboard using wl-copy"
-        else
-            log_warn "Failed to copy key to clipboard with wl-copy"
-        fi
-    elif command -v xsel &> /dev/null; then
-        if xsel --clipboard < ~/.ssh/id_ed25519.pub; then
-            log_success "SSH public key copied to clipboard using xsel"
-        else
-            log_warn "Failed to copy key to clipboard with xsel"
-        fi
-    elif command -v pbcopy &> /dev/null; then
-        if pbcopy < ~/.ssh/id_ed25519.pub; then
-            log_success "SSH public key copied to clipboard using pbcopy"
-        else
-            log_warn "Failed to copy key to clipboard with pbcopy"
-        fi
-    else
-        log_warn "No clipboard tool found (xclip/wl-copy/xsel/pbcopy). Please install one or copy manually."
     fi
-    
-    log_info "Your SSH public key is at: ~/.ssh/id_ed25519.pub"
-    log_info "Key content:"
-    log_info "----------------------------------------"
-    cat ~/.ssh/id_ed25519.pub
-    log_info "----------------------------------------"
-else
-    log_error "No public key found"
-    exit 1
-fi
 
-# Add GitHub to known hosts if not already there
-echo_header "Adding GitHub to Known Hosts"
-if ! grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null; then
-    log_info "Adding GitHub to known hosts"
-    # Create known_hosts file if it doesn't exist
-    touch ~/.ssh/known_hosts
-    chmod 644 ~/.ssh/known_hosts
-    
-    # Add GitHub's host keys (multiple key types for better compatibility)
-    ssh-keyscan -t rsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null || {
-        log_warn "Failed to add GitHub to known hosts. You may see a host verification prompt."
-    }
-else
-    log_success "GitHub already in known hosts"
-fi
-
-# Instructions for GitHub setup
-echo_header "GitHub Setup Instructions"
-log_info "1. Add your SSH key to GitHub:"
-log_info "   - Go to GitHub.com -> Settings -> SSH and GPG keys"
-log_info "   - Click 'New SSH key'"
-log_info "   - Give it a title (e.g., 'Personal Laptop')"
-log_info "   - Paste your public key (shown above or from clipboard)"
-log_info "   - Click 'Add SSH key'"
-log_info ""
-
-# Open GitHub settings in browser (with error handling)
-echo_header "Opening GitHub Settings"
-if command -v xdg-open &> /dev/null; then
-    if xdg-open "https://github.com/settings/keys" 2>/dev/null; then
-        log_success "Opened GitHub settings in browser"
-    else
-        log_warn "Failed to open browser. Please manually go to: https://github.com/settings/keys"
+    if ! grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null; then
+        touch ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+        ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null || true
     fi
-elif command -v open &> /dev/null; then
-    # macOS
-    if open "https://github.com/settings/keys" 2>/dev/null; then
-        log_success "Opened GitHub settings in browser"
-    else
-        log_warn "Failed to open browser. Please manually go to: https://github.com/settings/keys"
+
+    log_info "1. Go to: https://github.com/settings/keys"
+    log_info "2. Click 'New SSH key' and paste the key from clipboard."
+
+    if command_exists xdg-open; then
+        xdg-open "https://github.com/settings/keys" 2>/dev/null || true
+    elif command_exists open; then
+        open "https://github.com/settings/keys" 2>/dev/null || true
     fi
-else
-    log_info "Please manually open: https://github.com/settings/keys"
-fi
 
-# Wait for user confirmation
-log_info ""
-read -r -p "After adding the SSH key to GitHub, press Enter to test the connection..."
+    read -r -p "After adding the key to GitHub, press Enter to test..."
+}
 
-# Test SSH connection with improved error handling
-echo_header "Testing SSH Connection to GitHub"
-if [ -f ~/.ssh/id_ed25519 ]; then
-    log_info "Testing SSH connection..."
-    
-    # Test with better timeout and error handling
-    set +e  # Don't exit on error for this test
-    ssh_output=$(timeout 30 ssh -T git@github.com -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=yes 2>&1)
-    ssh_exit_code=$?
-    set -e  # Re-enable exit on error
-    
-    # Check results
-    if [ $ssh_exit_code -eq 124 ]; then
-        log_error "Connection timed out after 30 seconds"
-        log_info "This might indicate:"
-        log_info "1. Network connectivity issues"
-        log_info "2. Firewall blocking SSH connections"
-        log_info "3. GitHub is experiencing issues"
-        exit 1
-    elif echo "$ssh_output" | grep -q "successfully authenticated"; then
-        log_success "✓ SSH connection test successful"
-        username=$(echo "$ssh_output" | grep "Hi " | cut -d' ' -f2 | cut -d'!' -f1)
+test_github_connection() {
+    echo_header "Testing SSH connection to GitHub"
+    local ssh_out ssh_code
+
+    set +e
+    ssh_out="$(timeout 30 ssh -T git@github.com -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=yes 2>&1)"
+    ssh_code=$?
+    set -e
+
+    if echo "$ssh_out" | grep -q "successfully authenticated"; then
+        local username
+        username="$(echo "$ssh_out" | grep "Hi " | cut -d' ' -f2 | cut -d'!' -f1)"
         log_success "Connected to GitHub as: $username"
-    elif echo "$ssh_output" | grep -q "Permission denied"; then
-        log_error "❌ SSH connection failed - Permission denied"
-        log_info "This usually means:"
-        log_info "1. The SSH key hasn't been added to GitHub yet"
-        log_info "2. The SSH key was added incorrectly"
-        log_info "3. The SSH key doesn't match the one in your GitHub account"
-        log_info ""
-        log_info "Please double-check that you've added the correct SSH key to GitHub."
+    elif [[ $ssh_code -eq 124 ]]; then
+        log_error "Connection timed out. Check network or firewall."
         exit 1
     else
-        log_warn "Unexpected SSH response"
-        log_info "SSH output: $ssh_output"
-        log_info "Exit code: $ssh_exit_code"
-        log_info ""
-        log_info "Common issues:"
-        log_info "1. SSH key not added to GitHub"
-        log_info "2. Network connectivity problems"
-        log_info "3. SSH agent not running"
-        log_info ""
-        log_info "You can test manually with: ssh -T git@github.com"
+        log_error "Authentication failed. Check that the key was added to GitHub correctly."
+        log_info "SSH output: $ssh_out"
         exit 1
     fi
-else
-    log_error "No SSH key found to test"
-    exit 1
-fi
+}
 
-# Final verification
-echo_header "Final Verification"
-log_success "✓ SSH key location: ~/.ssh/id_ed25519"
-log_success "✓ SSH key permissions: $(stat -c %a ~/.ssh/id_ed25519)"
-log_success "✓ SSH agent running: $(if [ -n "$SSH_AGENT_PID" ]; then echo "Yes (PID: $SSH_AGENT_PID)"; else echo "No"; fi)"
-log_success "✓ Key loaded in agent: $(if ssh-add -l 2>/dev/null | grep -q "id_ed25519"; then echo "Yes"; else echo "No"; fi)"
-log_success "✓ GitHub connection: Working"
+main() {
+    echo_header "Checking Git installation"
+    if ! command_exists git; then
+        log_error "Git is not installed. Run the system step first."
+        exit 1
+    fi
+    log_success "Git is installed."
 
-# Show key fingerprint
-if [ -f ~/.ssh/id_ed25519 ]; then
-    log_success "✓ Key fingerprint: $(ssh-keygen -l -f ~/.ssh/id_ed25519 | awk '{print $2}')"
-fi
+    setup_ssh_key
+    load_ssh_agent
 
-log_info ""
-log_success "🎉 GitHub SSH key setup completed successfully!"
-log_info ""
-log_info "You can now clone repositories using SSH URLs like:"
-log_info "git clone git@github.com:username/repository.git"
+    if github_ssh_auth_works; then
+        echo_header "GitHub SSH"
+        log_success "GitHub SSH authentication is already working."
+        return 0
+    fi
+
+    add_key_to_github
+    test_github_connection
+
+    echo_header "GitHub SSH setup complete"
+    log_success "SSH key: ~/.ssh/id_ed25519"
+    log_info "Clone repos with: git clone git@github.com:username/repo.git"
+}
+
+main
