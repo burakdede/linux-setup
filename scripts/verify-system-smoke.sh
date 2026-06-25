@@ -35,12 +35,15 @@ base_commands=(
     mise
     claude
     codex
-    gemini
+    opencode
     pre-commit
     ruff
     yamllint
     eslint
     prettier
+    just
+    direnv
+    shfmt
     zsh
     tmux
 )
