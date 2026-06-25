@@ -41,7 +41,7 @@ Valid STEP values (run in this order on a fresh machine):
   multiplexer     Tmux TPM bootstrap and config wiring
   terminal        Install WezTerm, set as default terminal
   sdk             SDKMAN toolchain (Java, Kotlin, …)
-  agents          Coding agent MCP configuration
+  agents          Claude Code, Codex, OpenCode — install checks + central config symlinks
   git             GitHub SSH key setup (interactive)
   settings        GNOME desktop preferences (requires desktop session)
 
@@ -52,7 +52,7 @@ Dependencies:
   - configure needs dotfiles (for the .gitconfig symlink).
   - terminal picks up zsh as its default shell only after shell has run.
   - editor's Java LSP (jdtls) needs a JDK — run sdk before opening Java files.
-  - agents needs Node.js — run system first (it installs Node via mise).
+  - agents needs system packages (npm for claude-code, etc.) — run system first.
 EOF
 }
 
@@ -230,7 +230,7 @@ main() {
         # 7. Language SDKs — heavy, some LSP servers (jdtls) need this
         "sdk|$ROOT_DIR/sdk/sdk.sh|SDKMAN toolchain"
         # 8. Agent tooling — needs npm/node from system
-        "agents|$ROOT_DIR/agents/agents.sh|Coding agent MCP configuration"
+        "agents|$ROOT_DIR/agents/agents.sh|Coding agents (Claude Code, Codex, OpenCode)"
     )
 
     if [[ $INCLUDE_GIT -eq 1 ]]; then

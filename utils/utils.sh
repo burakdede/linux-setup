@@ -164,6 +164,26 @@ load_versions() {
     done < "$versions_file"
 }
 
+flag_enabled() {
+    local value="${1:-0}"
+    case "$value" in
+        1|true|TRUE|yes|YES|on|ON) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Check LINUX_SETUP_SKIP_<STEP>=1 env var.
+should_skip_step() {
+    local step_name="$1"
+    local var_name="LINUX_SETUP_SKIP_${step_name}"
+    flag_enabled "${!var_name:-0}"
+}
+
+# Check LINUX_SETUP_UPGRADE=1 env var — forces reinstall even if tool is present.
+upgrade_enabled() {
+    flag_enabled "${LINUX_SETUP_UPGRADE:-0}"
+}
+
 backup_gnome_settings() {
     local backup_dir="$HOME/.config/gsettings-backup"
     mkdir -p "$backup_dir"
