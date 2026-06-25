@@ -23,24 +23,6 @@ NVIM_BIN="$NVIM_INSTALL_DIR/bin/nvim"
 # Default falls back to latest if versions.txt doesn't pin one
 NEOVIM_VERSION="${NEOVIM_VERSION:-}"
 
-flag_enabled() {
-    local value="${1:-0}"
-    case "$value" in
-        1|true|TRUE|yes|YES|on|ON) return 0 ;;
-        *) return 1 ;;
-    esac
-}
-
-should_skip_step() {
-    local step_name="$1"
-    local var_name="LINUX_SETUP_SKIP_${step_name}"
-    flag_enabled "${!var_name:-0}"
-}
-
-upgrade_enabled() {
-    flag_enabled "${LINUX_SETUP_UPGRADE:-0}"
-}
-
 installed_nvim_version() {
     if command_exists nvim; then
         nvim --version 2>/dev/null | head -n1 | awk '{print $2}' | sed 's/^v//'
