@@ -39,21 +39,6 @@ class BootstrapRepoTests(unittest.TestCase):
         script_path.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
         return script_path
 
-    def create_sourceable_agents_script(self, directory: Path) -> Path:
-        original = (REPO_ROOT / "agents" / "agents.sh").read_text(encoding="utf-8")
-        lines = original.splitlines()
-        filtered_lines = []
-        for line in lines:
-            if line.strip() == 'source "$SCRIPT_DIR/../utils/utils.sh"':
-                continue
-            if line.strip() == "configure_mcps":
-                continue
-            filtered_lines.append(line)
-
-        script_path = directory / "agents-sourceable.sh"
-        script_path.write_text("\n".join(filtered_lines) + "\n", encoding="utf-8")
-        return script_path
-
     def test_shell_syntax_is_valid(self):
         scripts = [
             ".githooks/pre-commit",
@@ -64,7 +49,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "system/system.sh",
             "sdk/sdk.sh",
             "git/git.sh",
-            "dotfiles/dotfiles.sh",
+            "dotfiles.sh",
             "utils/utils.sh",
             "utils/settings.sh",
             "scripts/test.sh",
@@ -90,7 +75,7 @@ class BootstrapRepoTests(unittest.TestCase):
             "system/system.sh",
             "sdk/sdk.sh",
             "git/git.sh",
-            "dotfiles/dotfiles.sh",
+            "dotfiles.sh",
             "utils/utils.sh",
             "utils/settings.sh",
             "scripts/test.sh",
@@ -102,9 +87,13 @@ class BootstrapRepoTests(unittest.TestCase):
             "multiplexer/multiplexer.sh",
             "scripts/verify-install.sh",
             "configure/configure.sh",
-            "dotfiles/.bash_aliases",
-            "dotfiles/.zshenv",
         ]
+        # Include dotfiles submodule files only when submodule is initialized.
+        dotfiles_files = ["dotfiles/.bash_aliases", "dotfiles/.zshenv"]
+        for f in dotfiles_files:
+            if (REPO_ROOT / f).exists():
+                files.append(f)
+
         result = self.run_cmd(["shellcheck", *files])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -124,6 +113,8 @@ class BootstrapRepoTests(unittest.TestCase):
         self.assertIn("Skipping GNOME settings because no desktop session is active.", result.stderr)
 
     def test_dotfiles_script_installs_and_backs_up(self):
+        if not (REPO_ROOT / "dotfiles" / ".gitconfig").exists():
+            self.skipTest("dotfiles submodule not initialized")
         with tempfile.TemporaryDirectory() as temp_home:
             home = Path(temp_home)
             existing_gitconfig = home / ".gitconfig"
@@ -132,7 +123,7 @@ class BootstrapRepoTests(unittest.TestCase):
             env = os.environ.copy()
             env["HOME"] = temp_home
 
-            result = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+            result = self.run_cmd(["bash", "dotfiles.sh"], env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
 
             installed_aliases = home / ".bash_aliases"
@@ -440,103 +431,47 @@ class BootstrapRepoTests(unittest.TestCase):
             self.assertNotIn("ufw", output)
 
     def test_dotfiles_script_is_idempotent(self):
+        if not (REPO_ROOT / "dotfiles" / ".bash_aliases").exists():
+            self.skipTest("dotfiles submodule not initialized")
         with tempfile.TemporaryDirectory() as temp_home:
             env = os.environ.copy()
             env["HOME"] = temp_home
 
-            first = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
-            second = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+            first = self.run_cmd(["bash", "dotfiles.sh"], env=env)
+            second = self.run_cmd(["bash", "dotfiles.sh"], env=env)
 
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
             aliases = Path(temp_home) / ".bash_aliases"
             self.assertTrue(aliases.is_symlink(), ".bash_aliases should be a symlink after idempotent run")
 
-    def test_agents_script_writes_expected_mcp_commands(self):
+    def test_agents_script_creates_config_files(self):
+        """agents.sh creates codex config.toml and opencode config.json when absent."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            sourceable_script = self.create_sourceable_agents_script(tmp_path)
-            claude_json = tmp_path / "claude.json"
-            codex_json = tmp_path / "openai" / "mcp.json"
-            home = tmp_path / "home"
-            home.mkdir()
-
-            command = textwrap.dedent(
-                f"""\
-                source "{REPO_ROOT / 'utils' / 'utils.sh'}"
-                log_info() {{ :; }}
-                log_warn() {{ :; }}
-                log_success() {{ :; }}
-                echo_header() {{ :; }}
-                source "{sourceable_script}"
-                CLAUDE_JSON="{claude_json}"
-                CODEX_JSON="{codex_json}"
-                configure_mcps
-                """
-            )
+            home = Path(tmp_dir)
+            # Pre-create the central agents config directory (normally done by dotfiles.sh)
+            config_agents = home / ".config" / "agents"
+            config_agents.mkdir(parents=True)
+            (config_agents / "instructions.md").write_text("# Instructions\n", encoding="utf-8")
 
             env = os.environ.copy()
             env["HOME"] = str(home)
 
-            result = self.run_cmd(["bash", "-lc", command], env=env)
+            result = self.run_cmd(["bash", "agents/agents.sh"], env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
 
-            claude = json.loads(claude_json.read_text(encoding="utf-8"))
-            codex = json.loads(codex_json.read_text(encoding="utf-8"))
+            codex_config = home / ".codex" / "config.toml"
+            self.assertTrue(codex_config.exists(), "codex config.toml must be created")
+            self.assertIn("o4-mini", codex_config.read_text(encoding="utf-8"))
 
-            for payload in (claude, codex):
-                servers = payload["mcpServers"]
-                self.assertEqual(
-                    servers["filesystem"],
-                    {
-                        "command": "npx",
-                        "args": ["-y", "@modelcontextprotocol/server-filesystem", str(home)],
-                    },
-                )
-                self.assertEqual(
-                    servers["memory"],
-                    {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"]},
-                )
-                self.assertEqual(
-                    servers["sequential-thinking"],
-                    {
-                        "command": "npx",
-                        "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-                    },
-                )
-                self.assertEqual(
-                    servers["fetch"],
-                    {"command": "uvx", "args": ["mcp-server-fetch"]},
-                )
-                self.assertEqual(
-                    servers["playwright"],
-                    {"command": "npx", "args": ["-y", "@playwright/mcp"]},
-                )
-                self.assertEqual(
-                    servers["linear"],
-                    {
-                        "command": "npx",
-                        "args": ["-y", "linear-mcp-server"],
-                        "env": {"LINEAR_API_KEY": ""},
-                    },
-                )
-                self.assertEqual(
-                    servers["notion"],
-                    {
-                        "command": "npx",
-                        "args": ["-y", "@notionhq/notion-mcp-server"],
-                        "env": {"NOTION_TOKEN": ""},
-                    },
-                )
-                self.assertEqual(
-                    servers["miro"],
-                    {
-                        "command": "npx",
-                        "args": ["-y", "@k-jarzyna/mcp-miro"],
-                        "env": {"MIRO_ACCESS_TOKEN": ""},
-                    },
-                )
+            opencode_config = home / ".config" / "opencode" / "config.json"
+            self.assertTrue(opencode_config.exists(), "opencode config.json must be created")
+            payload = json.loads(opencode_config.read_text(encoding="utf-8"))
+            self.assertIn("model", payload)
+            self.assertFalse(payload.get("autoshare", True), "autoshare must be false")
 
+            claude_md = home / ".claude" / "CLAUDE.md"
+            self.assertTrue(claude_md.is_symlink(), "~/.claude/CLAUDE.md must be a symlink")
 
     def test_configure_script_skips_in_non_interactive_env(self):
         """configure.sh must exit 0 and not block when stdin is not a TTY."""
@@ -573,13 +508,17 @@ class BootstrapRepoTests(unittest.TestCase):
             content = local_cfg.read_text(encoding="utf-8")
             self.assertIn("Test User", content)
             self.assertIn("test@example.com", content)
-            # Must NOT have written to the repo's .gitconfig
+            # Must NOT have written to the repo's .gitconfig (when submodule initialized)
             repo_gitconfig = REPO_ROOT / "dotfiles" / ".gitconfig"
-            self.assertNotIn("Test User", repo_gitconfig.read_text(encoding="utf-8"))
+            if repo_gitconfig.exists():
+                self.assertNotIn("Test User", repo_gitconfig.read_text(encoding="utf-8"))
 
     def test_gitconfig_includes_local_override(self):
         """dotfiles/.gitconfig must include ~/.gitconfig.local."""
-        gitconfig = (REPO_ROOT / "dotfiles" / ".gitconfig").read_text(encoding="utf-8")
+        gitconfig_path = REPO_ROOT / "dotfiles" / ".gitconfig"
+        if not gitconfig_path.exists():
+            self.skipTest("dotfiles submodule not initialized")
+        gitconfig = gitconfig_path.read_text(encoding="utf-8")
         self.assertIn(".gitconfig.local", gitconfig)
         self.assertIn("[include]", gitconfig)
 
@@ -597,7 +536,6 @@ class BootstrapRepoTests(unittest.TestCase):
         self.assertTrue(versions_file.exists(), "versions.txt must exist")
         required = {
             "NEOVIM_VERSION",
-            "WEZTERM_VERSION",
             "MISE_VERSION",
             "NODE_VERSION",
             "GO_VERSION",
@@ -625,7 +563,6 @@ class BootstrapRepoTests(unittest.TestCase):
             source "{REPO_ROOT / 'utils' / 'utils.sh'}"
             load_versions "{versions_file}"
             echo "NEOVIM=$NEOVIM_VERSION"
-            echo "WEZTERM=$WEZTERM_VERSION"
             echo "NODE=$NODE_VERSION"
             echo "GO=$GO_VERSION"
             echo "PYTHON=$PYTHON_VERSION"
@@ -635,7 +572,6 @@ class BootstrapRepoTests(unittest.TestCase):
         result = self.run_cmd(["bash", "-lc", command])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("NEOVIM=", result.stdout)
-        self.assertIn("WEZTERM=", result.stdout)
         self.assertIn("NODE=", result.stdout)
         self.assertIn("GO=", result.stdout)
         self.assertIn("PYTHON=", result.stdout)
@@ -668,7 +604,8 @@ class BootstrapRepoTests(unittest.TestCase):
     def test_wezterm_config_is_valid_lua(self):
         """WezTerm config file must exist and be parseable as Lua if luac is available."""
         config_path = REPO_ROOT / "dotfiles" / ".config" / "wezterm" / "wezterm.lua"
-        self.assertTrue(config_path.exists(), "wezterm.lua dotfile must exist")
+        if not config_path.exists():
+            self.skipTest("dotfiles submodule not initialized")
         content = config_path.read_text(encoding="utf-8")
         self.assertIn("wezterm.config_builder", content)
         self.assertIn("return config", content)
@@ -722,36 +659,42 @@ class BootstrapRepoTests(unittest.TestCase):
 
     def test_nvim_config_entrypoint_exists(self):
         init_lua = REPO_ROOT / "dotfiles" / ".config" / "nvim" / "init.lua"
-        self.assertTrue(init_lua.exists(), "nvim init.lua must exist")
+        if not init_lua.exists():
+            self.skipTest("dotfiles submodule not initialized")
         content = init_lua.read_text(encoding="utf-8")
         self.assertIn("lazy", content.lower())
 
     def test_nvim_lsp_plugin_declares_common_servers(self):
         lsp_lua = REPO_ROOT / "dotfiles" / ".config" / "nvim" / "lua" / "plugins" / "lsp.lua"
-        self.assertTrue(lsp_lua.exists(), "lsp.lua plugin spec must exist")
+        if not lsp_lua.exists():
+            self.skipTest("dotfiles submodule not initialized")
         content = lsp_lua.read_text(encoding="utf-8")
         for server in ("pyright", "gopls", "rust_analyzer", "jdtls"):
             self.assertIn(server, content, f"LSP server {server!r} missing from lsp.lua")
 
     def test_zsh_config_scaffold_exists(self):
         zshrc = REPO_ROOT / "dotfiles" / ".zshrc"
-        zshenv = REPO_ROOT / "dotfiles" / ".zshenv"
+        if not zshrc.exists():
+            self.skipTest("dotfiles submodule not initialized")
         self.assertTrue(zshrc.exists(), ".zshrc scaffold must exist")
-        self.assertTrue(zshenv.exists(), ".zshenv scaffold must exist")
+        self.assertTrue((REPO_ROOT / "dotfiles" / ".zshenv").exists(), ".zshenv scaffold must exist")
 
     def test_tmux_config_scaffold_exists(self):
         tmux_conf = REPO_ROOT / "dotfiles" / ".config" / "tmux" / "tmux.conf"
+        if not tmux_conf.exists():
+            self.skipTest("dotfiles submodule not initialized")
         self.assertTrue(tmux_conf.exists(), "tmux.conf scaffold must exist")
 
     def test_dotfiles_installs_config_subdirectories(self):
         """dotfiles.sh symlinks .config/ subdirectories (wezterm, nvim, tmux) into $HOME."""
+        if not (REPO_ROOT / "dotfiles" / ".zshrc").exists():
+            self.skipTest("dotfiles submodule not initialized")
         with tempfile.TemporaryDirectory() as temp_home:
             env = os.environ.copy()
             env["HOME"] = temp_home
-            result = self.run_cmd(["bash", "dotfiles/dotfiles.sh"], env=env)
+            result = self.run_cmd(["bash", "dotfiles.sh"], env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             home = Path(temp_home)
-            # The entries inside .config must be symlinks pointing into the repo
             for entry in ("wezterm", "nvim", "tmux"):
                 target = home / ".config" / entry
                 self.assertTrue(target.is_symlink(), f".config/{entry} must be a symlink")
