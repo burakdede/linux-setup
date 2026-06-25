@@ -121,8 +121,8 @@ configure_wallpapers() {
     local tmp_profile tmp_db
 
     repo_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-    desktop_input="${LINUX_SETUP_DESKTOP_WALLPAPER_PATH:-assets/wallpapers/desktop.jpg}"
-    login_input="${LINUX_SETUP_LOGIN_WALLPAPER_PATH:-assets/wallpapers/login.jpg}"
+    desktop_input="${LINUX_SETUP_DESKTOP_WALLPAPER_PATH:-assets/wallpapers/desktop.png}"
+    login_input="${LINUX_SETUP_LOGIN_WALLPAPER_PATH:-assets/wallpapers/login.png}"
 
     desktop_path="$(resolve_wallpaper_path "$desktop_input" "$repo_root")"
     if [[ -f "$desktop_path" ]]; then
