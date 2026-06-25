@@ -40,9 +40,8 @@ ensure_tmux_config() {
         printf '%s\n' "$shim_line" > "$shim"
         log_info "Created ~/.tmux.conf shim pointing to $xdg_conf"
     else
-        if ! grep -Fq "$shim_line" "$shim"; then
-            log_info "$HOME/.tmux.conf already exists; not overwriting."
-        fi
+        ensure_line_in_file "$shim_line" "$shim"
+        log_info "Ensured ~/.tmux.conf shim line is present"
     fi
 
     # Install TPM (Tmux Plugin Manager) into XDG data dir to keep runtime
