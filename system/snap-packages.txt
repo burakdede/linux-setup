@@ -6,7 +6,6 @@ discord - classic
 obsidian - classic
 localsend
 postman
-zoom-client
 
 # Development tools
 insomnia
