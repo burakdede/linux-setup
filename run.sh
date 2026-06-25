@@ -217,7 +217,7 @@ main() {
         # 1. Base system — everything else depends on this
         "system|$ROOT_DIR/system/system.sh|System packages and developer tooling"
         # 2. Dotfiles — configs in place before any tool is configured
-        "dotfiles|$ROOT_DIR/dotfiles/dotfiles.sh|Dotfiles"
+        "dotfiles|$ROOT_DIR/dotfiles.sh|Dotfiles"
         # 3. Identity — needs .gitconfig symlinked by dotfiles
         "configure|$ROOT_DIR/configure/configure.sh|Interactive configuration"
         # 4. Shell — change default shell early; later tools benefit from zsh being active

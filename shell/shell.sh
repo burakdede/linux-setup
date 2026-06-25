@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../utils/utils.sh"
 
 trap 'handle_error $? $LINENO' ERR
 
-ZSH_PROFILE="${LINUX_SETUP_ZSH_PROFILE:-antidote-p10k}"
+ZSH_PROFILE="${ZSH_PROFILE:-antidote-p10k}"
 ANTIDOTE_DIR="$HOME/.local/share/antidote"
 P10K_DIR="$HOME/.local/share/powerlevel10k"
 Z4H_DIR="$HOME/.local/share/zsh4humans"
